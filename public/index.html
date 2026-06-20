@@ -3,6 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#159884">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="VibeCast">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.svg">
   <title>VibeCast Remote</title>
   <style>
     :root {
@@ -428,6 +436,7 @@
         setStatus('Pairing', false);
         if (state.pairingToken) {
           authPanel.style.display = 'none';
+          setMessage('Pairing with saved token...', false);
           authWithToken(state.pairingToken);
         } else {
           authPanel.style.display = 'grid';
@@ -462,6 +471,7 @@
         authPanel.style.display = 'none';
         mainPanel.classList.add('ready');
         authMessage.textContent = '';
+        setMessage('', false);
         setStatus('Ready', true);
         textInput.focus();
         return;

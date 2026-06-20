@@ -23,6 +23,8 @@ macOS 也可以双击 `start.command`。Windows 可以双击 `start.bat`。
 
 手机和电脑必须在同一个 Wi-Fi 下。优先打开带 `token` 的手机地址，页面会自动配对；如果 token 过期或复制了不带 token 的地址，再输入 PIN。手机地址要使用 `http://`，不是 `https://`。
 
+在 Android Chrome 或 iOS Safari 中，可以通过浏览器菜单把 VibeCast Remote 添加到主屏幕。手机页面已经包含 Web App manifest 和图标，启动体验会更接近普通 App。
+
 ## macOS 权限
 
 macOS 默认会阻止程序模拟键盘输入。首次使用需要开启辅助功能权限：
@@ -53,6 +55,10 @@ Windows 首次启动时，如果系统弹出 Windows Defender 防火墙提示，
 
 - `PORT=9000 npm start` 可以修改端口。
 - `config.json` 可以修改应用名和快捷按钮。
+
+## 更新记录
+
+见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 安全说明
 

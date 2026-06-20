@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added a web app manifest and SVG icon for add-to-home-screen support.
+- Added mobile web app meta tags for a more app-like phone experience.
+
+### Changed
+
+- Token auto-pairing now shows a clearer pairing status while connecting.
+
 ## 0.3.0 - 2026-06-20
 
 ### Added

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="VibeCast">
+  <rect width="512" height="512" rx="96" fill="#159884"/>
+  <path d="M151 150h70l35 153 35-153h70l-70 212h-70L151 150Z" fill="#ffffff"/>
+  <rect x="168" y="382" width="176" height="34" rx="17" fill="#dff8f2"/>
+  <circle cx="256" cy="102" r="28" fill="#dff8f2"/>
+</svg>

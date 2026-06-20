@@ -17,6 +17,8 @@ On macOS, you can also double-click `start.command`. On Windows, double-click `s
 
 The server prints one or more same-Wi-Fi URLs with a `token` query parameter. Open a token URL on your phone and pairing happens automatically. A four-digit PIN is still printed as a manual fallback.
 
+On Android Chrome or iOS Safari, use the browser menu to add VibeCast Remote to the home screen. The phone page includes a web app manifest and app icon for a more app-like launch experience.
+
 ## Platform Setup
 
 macOS blocks simulated keyboard input until you grant Accessibility access:
@@ -47,6 +49,10 @@ Token URLs are local control links. The phone stores the token in browser localS
 
 - `PORT=9000 npm start` changes the port.
 - `config.json` controls the app label and quick buttons.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## Credits
 
