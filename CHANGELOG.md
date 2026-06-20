@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added configurable target cards for the phone UI.
+- Added per-target phone drafts stored in browser localStorage.
+- Added `targetId` to text and Send + Enter messages as groundwork for future target-aware routing.
+
+### Notes
+
+- Target cards are currently a phone-side workflow feature. Text injection still uses the computer's currently focused input field.
+
 ## 0.4.0 - 2026-06-20
 
 ### Added

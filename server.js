@@ -40,10 +40,19 @@ function loadConfig() {
   try {
     const parsed = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
     if (!Array.isArray(parsed.quickButtons)) parsed.quickButtons = [];
+    if (!Array.isArray(parsed.targets) || parsed.targets.length === 0) parsed.targets = defaultTargets();
     return parsed;
   } catch {
-    return { appName: 'VibeCast Remote', quickButtons: [] };
+    return { appName: 'VibeCast Remote', targets: defaultTargets(), quickButtons: [] };
   }
+}
+
+function defaultTargets() {
+  return [
+    { id: 'current', label: 'Current Focus', hint: 'Use focused input', initial: 'C' },
+    { id: 'codex', label: 'Codex', hint: 'Draft for Codex', initial: 'C' },
+    { id: 'notion', label: 'Notion', hint: 'Draft for Notion', initial: 'N' }
+  ];
 }
 
 function sendJson(ws, payload) {
@@ -91,6 +100,7 @@ function healthPayload() {
     platform: PLATFORM,
     platformLabel: platformAdapter.label,
     target: targetState,
+    targets: config.targets,
     port: PORT,
     localUrl: `http://127.0.0.1:${PORT}`,
     lanIPs,
@@ -127,7 +137,7 @@ async function refreshTargetState() {
         platform: PLATFORM,
         updatedAt: new Date().toISOString()
       };
-      broadcast({ type: 'status', target: targetState, quickButtons: config.quickButtons });
+      broadcast({ type: 'status', target: targetState, targets: config.targets, quickButtons: config.quickButtons });
     }
   } catch {
     if (targetState.appName !== 'Current Focus') {
@@ -136,7 +146,7 @@ async function refreshTargetState() {
         platform: PLATFORM,
         updatedAt: new Date().toISOString()
       };
-      broadcast({ type: 'status', target: targetState, quickButtons: config.quickButtons });
+      broadcast({ type: 'status', target: targetState, targets: config.targets, quickButtons: config.quickButtons });
     }
   }
 }
@@ -164,6 +174,7 @@ function handleAuth(ws, req, msg) {
     sendJson(ws, {
       type: 'status',
       target: targetState,
+      targets: config.targets,
       quickButtons: config.quickButtons,
       appName: config.appName || 'VibeCast Remote'
     });
@@ -189,19 +200,19 @@ async function handleAuthedMessage(ws, msg) {
   switch (msg.type) {
     case 'type':
       if (typeof msg.text === 'string') await platformAdapter.injectText(msg.text);
-      sendJson(ws, { type: 'sent', mode: 'type' });
+      sendJson(ws, { type: 'sent', mode: 'type', targetId: msg.targetId || 'current' });
       break;
     case 'sendEnter':
       if (typeof msg.text === 'string') await injectTextAndEnter(msg.text);
       else await platformAdapter.pressNamedKey('Enter');
-      sendJson(ws, { type: 'sent', mode: 'sendEnter' });
+      sendJson(ws, { type: 'sent', mode: 'sendEnter', targetId: msg.targetId || 'current' });
       break;
     case 'key':
       await platformAdapter.pressNamedKey(String(msg.key || ''));
       sendJson(ws, { type: 'sent', mode: 'key', key: msg.key });
       break;
     case 'ping':
-      sendJson(ws, { type: 'pong', target: targetState });
+      sendJson(ws, { type: 'pong', target: targetState, targets: config.targets, quickButtons: config.quickButtons });
       break;
     default:
       break;

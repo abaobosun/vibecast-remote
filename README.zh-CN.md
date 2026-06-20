@@ -37,6 +37,8 @@ Windows 首次启动时，如果系统弹出 Windows Defender 防火墙提示，
 
 ## 使用方式
 
+- 手机页面现在可以切换多个目标草稿卡，例如 Current Focus、Codex、Notion。
+- 这个版本里的目标卡主要用于手机端分开保存草稿；实际发送仍然进入电脑上当前聚焦的输入框。
 - `Send`：把文本发送到当前聚焦的输入框。
 - `Send + Enter`：先发送文本，短暂等待后再按 Enter。
 - 快捷按钮：发送 `继续`、`y`、`n`、`/compact` 等常用短语。
@@ -54,7 +56,7 @@ Windows 首次启动时，如果系统弹出 Windows Defender 防火墙提示，
 ## 配置
 
 - `PORT=9000 npm start` 可以修改端口。
-- `config.json` 可以修改应用名和快捷按钮。
+- `config.json` 可以修改应用名、目标草稿卡和快捷按钮。
 
 ## 更新记录
 

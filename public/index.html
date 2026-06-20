@@ -174,7 +174,7 @@
       display: grid;
     }
 
-    .target {
+    .focus-target {
       display: grid;
       grid-template-columns: 44px 1fr auto;
       gap: 12px;
@@ -219,6 +219,77 @@
       padding: 0;
       font-size: 18px;
       background: #ffffff;
+    }
+
+    .target-picker {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .target-list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .target-card {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      min-height: 62px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdfc;
+      color: var(--ink);
+      text-align: left;
+    }
+
+    .target-card.active {
+      border-color: rgba(21, 152, 132, 0.55);
+      background: var(--panel-strong);
+      box-shadow: inset 0 0 0 1px rgba(21, 152, 132, 0.22);
+    }
+
+    .target-card-icon {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: var(--button);
+      color: var(--accent-dark);
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .target-card.active .target-card-icon {
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .target-card-text {
+      min-width: 0;
+    }
+
+    .target-card-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .target-card-meta {
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
     }
 
     .composer {
@@ -311,8 +382,12 @@
         grid-template-columns: repeat(2, 1fr);
       }
 
-      .target {
+      .focus-target {
         grid-template-columns: 40px 1fr 40px;
+      }
+
+      .target-list {
+        grid-template-columns: 1fr;
       }
 
       textarea {
@@ -341,7 +416,7 @@
     </section>
 
     <section class="main" id="mainPanel">
-      <div class="panel target">
+      <div class="panel focus-target">
         <div class="target-icon" id="targetInitial">C</div>
         <div class="target-label">
           <div class="target-name" id="targetName">Current Focus</div>
@@ -349,6 +424,10 @@
         </div>
         <button class="refresh" id="refreshButton" aria-label="Refresh target">↻</button>
       </div>
+
+      <section class="panel target-picker">
+        <div class="target-list" id="targetList"></div>
+      </section>
 
       <section class="panel composer">
         <textarea id="textInput" autocapitalize="sentences" autocomplete="off" placeholder="语音输入内容"></textarea>
@@ -376,6 +455,9 @@
       ws: null,
       authed: false,
       quickButtons: [],
+      targets: [],
+      activeTargetId: 'current',
+      drafts: {},
       authPending: false,
       lastAttemptPin: '',
       lastAuthMethod: '',
@@ -391,7 +473,13 @@
     const pinInput = $('pinInput');
     const textInput = $('textInput');
     const quickButtons = $('quickButtons');
+    const targetList = $('targetList');
     const tokenStorageKey = `vibecast_pairing_token:${location.host}`;
+    const draftsStorageKey = `vibecast_drafts:${location.host}`;
+    const activeTargetStorageKey = `vibecast_active_target:${location.host}`;
+
+    loadDrafts();
+    loadActiveTarget();
 
     function loadPairingToken() {
       const params = new URLSearchParams(location.search);
@@ -424,6 +512,116 @@
       }
       state.ws.send(JSON.stringify(payload));
       return true;
+    }
+
+    function defaultTargets() {
+      return [
+        { id: 'current', label: 'Current Focus', hint: 'Use focused input', initial: 'C' }
+      ];
+    }
+
+    function normalizeTargets(targets) {
+      const source = Array.isArray(targets) && targets.length ? targets : defaultTargets();
+      const seen = new Set();
+      return source
+        .filter((target) => target && typeof target.id === 'string' && target.id.trim())
+        .map((target) => ({
+          id: target.id.trim(),
+          label: String(target.label || target.id),
+          hint: String(target.hint || ''),
+          initial: String(target.initial || target.label || target.id).trim().charAt(0).toUpperCase() || 'C'
+        }))
+        .filter((target) => {
+          if (seen.has(target.id)) return false;
+          seen.add(target.id);
+          return true;
+        });
+    }
+
+    function loadDrafts() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(draftsStorageKey) || '{}');
+        state.drafts = parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        state.drafts = {};
+      }
+    }
+
+    function saveDrafts() {
+      localStorage.setItem(draftsStorageKey, JSON.stringify(state.drafts));
+    }
+
+    function loadActiveTarget() {
+      state.activeTargetId = localStorage.getItem(activeTargetStorageKey) || 'current';
+    }
+
+    function saveActiveTarget() {
+      localStorage.setItem(activeTargetStorageKey, state.activeTargetId);
+    }
+
+    function getActiveTarget() {
+      return state.targets.find((target) => target.id === state.activeTargetId) || state.targets[0] || defaultTargets()[0];
+    }
+
+    function saveActiveDraft() {
+      state.drafts[state.activeTargetId] = textInput.value;
+      saveDrafts();
+      renderTargets();
+    }
+
+    function setActiveTarget(id) {
+      if (!state.targets.some((target) => target.id === id)) return;
+      state.drafts[state.activeTargetId] = textInput.value;
+      state.activeTargetId = id;
+      saveActiveTarget();
+      textInput.value = state.drafts[state.activeTargetId] || '';
+      saveDrafts();
+      renderTargets();
+      setMessage('', false);
+      textInput.focus();
+    }
+
+    function setTargets(targets) {
+      state.targets = normalizeTargets(targets);
+      if (!state.targets.some((target) => target.id === state.activeTargetId)) {
+        state.activeTargetId = state.targets[0].id;
+        saveActiveTarget();
+      }
+      textInput.value = state.drafts[state.activeTargetId] || '';
+      renderTargets();
+    }
+
+    function draftSummary(target) {
+      const text = state.drafts[target.id] || '';
+      const count = text.trim().length;
+      return count ? `${count} chars draft` : (target.hint || 'No draft');
+    }
+
+    function renderTargets() {
+      targetList.innerHTML = '';
+      const targets = state.targets.length ? state.targets : defaultTargets();
+      targets.forEach((target) => {
+        const button = document.createElement('button');
+        const icon = document.createElement('span');
+        const text = document.createElement('span');
+        const name = document.createElement('span');
+        const meta = document.createElement('span');
+        button.type = 'button';
+        button.className = 'target-card';
+        button.classList.toggle('active', target.id === state.activeTargetId);
+        button.setAttribute('aria-pressed', String(target.id === state.activeTargetId));
+        icon.className = 'target-card-icon';
+        icon.textContent = target.initial;
+        text.className = 'target-card-text';
+        name.className = 'target-card-name';
+        name.textContent = target.label;
+        meta.className = 'target-card-meta';
+        meta.textContent = draftSummary(target);
+        text.append(name, meta);
+        button.append(icon, text);
+        button.addEventListener('click', () => setActiveTarget(target.id));
+        targetList.appendChild(button);
+      });
     }
 
     function connect() {
@@ -495,11 +693,14 @@
         return;
       }
 
-      if (data.type === 'status') {
+      if (data.type === 'status' || data.type === 'pong') {
         if (data.appName) $('appName').textContent = data.appName;
         if (data.target && data.target.appName) {
           $('targetName').textContent = data.target.appName;
           $('targetInitial').textContent = data.target.appName.trim().charAt(0).toUpperCase() || 'C';
+        }
+        if (Array.isArray(data.targets)) {
+          setTargets(data.targets);
         }
         if (Array.isArray(data.quickButtons)) {
           state.quickButtons = data.quickButtons;
@@ -509,7 +710,8 @@
       }
 
       if (data.type === 'sent') {
-        setMessage('Sent', false);
+        const target = state.targets.find((item) => item.id === data.targetId) || getActiveTarget();
+        setMessage(`Sent to ${target.label}`, false);
         setTimeout(() => setMessage('', false), 900);
         return;
       }
@@ -528,7 +730,7 @@
         button.addEventListener('click', () => {
           const payload = String(item.payload || '');
           if (!payload) return;
-          send({ type: 'type', text: payload });
+          send({ type: 'type', text: payload, targetId: state.activeTargetId });
         });
         quickButtons.appendChild(button);
       });
@@ -570,16 +772,17 @@
     $('sendButton').addEventListener('click', () => {
       const text = textInput.value;
       if (!text) return;
-      if (send({ type: 'type', text })) textInput.focus();
+      if (send({ type: 'type', text, targetId: state.activeTargetId })) textInput.focus();
     });
 
     $('sendEnterButton').addEventListener('click', () => {
       const text = textInput.value;
-      if (send({ type: 'sendEnter', text })) textInput.focus();
+      if (send({ type: 'sendEnter', text, targetId: state.activeTargetId })) textInput.focus();
     });
 
     $('clearButton').addEventListener('click', () => {
       textInput.value = '';
+      saveActiveDraft();
       setMessage('', false);
       textInput.focus();
     });
@@ -594,6 +797,8 @@
       });
     });
 
+    textInput.addEventListener('input', saveActiveDraft);
+    setTargets(defaultTargets());
     connect();
   </script>
 </body>
