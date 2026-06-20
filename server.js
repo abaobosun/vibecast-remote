@@ -12,6 +12,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 const platformAdapter = require('./platform');
 
@@ -21,6 +22,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 const PLATFORM = process.platform;
 const PIN = String(Math.floor(1000 + Math.random() * 9000));
+const PAIRING_TOKEN = crypto.randomBytes(24).toString('base64url');
 const MAX_FAILS = 20;
 const BLOCK_MS = 15 * 1000;
 const STATUS_INTERVAL_MS = 2000;
@@ -97,6 +99,19 @@ function healthPayload() {
   };
 }
 
+function buildUrl(host, includeToken = false) {
+  const url = new URL(`http://${host}:${PORT}`);
+  if (includeToken) url.searchParams.set('token', PAIRING_TOKEN);
+  return url.toString();
+}
+
+function safeEqual(a, b) {
+  const aBuffer = Buffer.from(String(a || ''));
+  const bBuffer = Buffer.from(String(b || ''));
+  if (aBuffer.length !== bBuffer.length) return false;
+  return crypto.timingSafeEqual(aBuffer, bBuffer);
+}
+
 async function injectTextAndEnter(text) {
   await platformAdapter.injectText(text);
   await new Promise((resolve) => setTimeout(resolve, SEND_ENTER_DELAY_MS));
@@ -139,10 +154,13 @@ function handleAuth(ws, req, msg) {
     return;
   }
 
-  if (String(msg.pin) === PIN) {
+  const tokenMatches = typeof msg.token === 'string' && safeEqual(msg.token, PAIRING_TOKEN);
+  const pinMatches = typeof msg.pin === 'string' && String(msg.pin) === PIN;
+
+  if (tokenMatches || pinMatches) {
     authFails.delete(ip);
     authed.add(ws);
-    sendJson(ws, { type: 'authOk' });
+    sendJson(ws, { type: 'authOk', method: tokenMatches ? 'token' : 'pin' });
     sendJson(ws, {
       type: 'status',
       target: targetState,
@@ -175,7 +193,7 @@ async function handleAuthedMessage(ws, msg) {
       break;
     case 'sendEnter':
       if (typeof msg.text === 'string') await injectTextAndEnter(msg.text);
-      else await pressNamedKey('Enter');
+      else await platformAdapter.pressNamedKey('Enter');
       sendJson(ws, { type: 'sent', mode: 'sendEnter' });
       break;
     case 'key':
@@ -283,14 +301,18 @@ wss.on('error', (error) => {
 server.listen(PORT, HOST, () => {
   const ips = getLanIPs();
   console.log('\n================ VibeCast Remote ================');
-  console.log(`Pairing PIN: ${PIN}`);
   console.log(`Platform: ${platformAdapter.label}`);
-  console.log(`On this ${platformAdapter.localMachineLabel}: http://127.0.0.1:${PORT}`);
-  console.log('On your phone, open one of these same-Wi-Fi URLs:');
+  console.log(`On this ${platformAdapter.localMachineLabel}: ${buildUrl('127.0.0.1')}`);
+  console.log('On your phone, open one of these same-Wi-Fi token URLs:');
   if (ips.length) {
-    ips.forEach((ip) => console.log(`   http://${ip}:${PORT}`));
+    ips.forEach((ip) => console.log(`   ${buildUrl(ip, true)}`));
   } else {
     console.log('   No Wi-Fi/LAN address found yet. Check Network settings, then restart.');
+  }
+  console.log(`\nManual fallback PIN: ${PIN}`);
+  if (ips.length) {
+    console.log('Manual same-Wi-Fi URLs without token:');
+    ips.forEach((ip) => console.log(`   ${buildUrl(ip)}`));
   }
   console.log('\nIf the phone URL stops opening, your Mac IP may have changed.');
   console.log(`Open http://127.0.0.1:${PORT}/health on the Mac to see the current LAN URL.`);

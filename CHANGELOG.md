@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added token URLs for automatic phone pairing without typing the PIN.
+- The phone page now stores pairing tokens in localStorage and removes the token from the address bar after first load.
+
+### Changed
+
+- PIN pairing is now a manual fallback instead of the primary same-Wi-Fi flow.
+
 ## 0.2.0 - 2026-06-20
 
 ### Added

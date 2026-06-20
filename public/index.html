@@ -369,7 +369,9 @@
       authed: false,
       quickButtons: [],
       authPending: false,
-      lastAttemptPin: ''
+      lastAttemptPin: '',
+      lastAuthMethod: '',
+      pairingToken: ''
     };
 
     const $ = (id) => document.getElementById(id);
@@ -381,6 +383,21 @@
     const pinInput = $('pinInput');
     const textInput = $('textInput');
     const quickButtons = $('quickButtons');
+    const tokenStorageKey = `vibecast_pairing_token:${location.host}`;
+
+    function loadPairingToken() {
+      const params = new URLSearchParams(location.search);
+      const urlToken = params.get('token');
+      if (urlToken) {
+        localStorage.setItem(tokenStorageKey, urlToken);
+        params.delete('token');
+        const query = params.toString();
+        const nextUrl = `${location.pathname}${query ? `?${query}` : ''}${location.hash}`;
+        history.replaceState(null, '', nextUrl);
+        return urlToken;
+      }
+      return localStorage.getItem(tokenStorageKey) || '';
+    }
 
     function setStatus(text, ready) {
       statusEl.textContent = text;
@@ -403,11 +420,18 @@
 
     function connect() {
       const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      state.pairingToken = loadPairingToken();
       state.ws = new WebSocket(`${protocol}//${location.host}`);
       setStatus('Connecting', false);
 
       state.ws.addEventListener('open', () => {
         setStatus('Pairing', false);
+        if (state.pairingToken) {
+          authPanel.style.display = 'none';
+          authWithToken(state.pairingToken);
+        } else {
+          authPanel.style.display = 'grid';
+        }
       });
 
       state.ws.addEventListener('close', () => {
@@ -434,6 +458,7 @@
         state.authed = true;
         state.authPending = false;
         state.lastAttemptPin = '';
+        state.lastAuthMethod = data.method || '';
         authPanel.style.display = 'none';
         mainPanel.classList.add('ready');
         authMessage.textContent = '';
@@ -444,6 +469,15 @@
 
       if (data.type === 'authFail') {
         state.authPending = false;
+        if (state.lastAuthMethod === 'token') {
+          localStorage.removeItem(tokenStorageKey);
+          state.pairingToken = '';
+          state.lastAuthMethod = '';
+          authPanel.style.display = 'grid';
+          authMessage.textContent = 'Token expired. Enter the current PIN.';
+          setStatus('Pairing', false);
+          return;
+        }
         const seconds = Math.ceil((data.retryAfterMs || 0) / 1000);
         authMessage.textContent = data.blocked
           ? `PIN locked, retry in ${Math.max(1, seconds)}s`
@@ -490,6 +524,14 @@
       });
     }
 
+    function authWithToken(token) {
+      if (!token || state.authPending) return;
+      state.authPending = true;
+      state.lastAuthMethod = 'token';
+      authMessage.textContent = '';
+      send({ type: 'auth', token });
+    }
+
     function pair() {
       const pin = pinInput.value.trim();
       if (pin.length !== 4) {
@@ -498,6 +540,7 @@
       }
       if (state.authPending && pin === state.lastAttemptPin) return;
       state.authPending = true;
+      state.lastAuthMethod = 'pin';
       state.lastAttemptPin = pin;
       send({ type: 'auth', pin });
     }
@@ -506,6 +549,7 @@
     pinInput.addEventListener('input', () => {
       pinInput.value = pinInput.value.replace(/\D/g, '').slice(0, 4);
       state.authPending = false;
+      state.lastAuthMethod = '';
       state.lastAttemptPin = '';
       if (pinInput.value.length === 4) pair();
     });

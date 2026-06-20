@@ -15,7 +15,7 @@ npm start
 
 On macOS, you can also double-click `start.command`. On Windows, double-click `start.bat`.
 
-The server prints a four-digit PIN and one or more LAN URLs. Open one of those URLs on a phone connected to the same Wi-Fi, enter the PIN, and use the input panel.
+The server prints one or more same-Wi-Fi URLs with a `token` query parameter. Open a token URL on your phone and pairing happens automatically. A four-digit PIN is still printed as a manual fallback.
 
 ## Platform Setup
 
@@ -40,6 +40,8 @@ On Windows, allow Node.js through Windows Defender Firewall if prompted. If inje
 ## Security
 
 This is for trusted local networks. The pairing PIN changes on every launch and is not stored. Do not expose the port to the public internet.
+
+Token URLs are local control links. The phone stores the token in browser localStorage and removes it from the address bar after first load. Restarting the server generates a new token.
 
 ## Configuration
 
