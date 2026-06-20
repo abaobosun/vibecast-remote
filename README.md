@@ -1,5 +1,7 @@
 # VibeCast Remote
 
+[中文说明](README.zh-CN.md)
+
 VibeCast Remote lets a phone browser send dictated or typed text into the currently focused macOS input field over your local Wi-Fi.
 
 The phone side is just a web page. Tap the text area, use the microphone in your iOS or Android keyboard/input method, then send the recognized text to the Mac.
