@@ -2,7 +2,7 @@
 
 /*
  * VibeCast Remote
- * A local-first phone-browser input bridge for macOS.
+ * A local-first phone-browser input bridge for macOS and Windows.
  *
  * This project is inspired by hello-claude/phone-web-remote:
  * https://github.com/hello-claude/phone-web-remote
@@ -12,9 +12,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execFile } = require('child_process');
 const { WebSocketServer } = require('ws');
-const { keyboard, Key } = require('@nut-tree-fork/nut-js');
+const platformAdapter = require('./platform');
 
 const PORT = Number(process.env.PORT) || 8765;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -25,19 +24,7 @@ const PIN = String(Math.floor(1000 + Math.random() * 9000));
 const MAX_FAILS = 20;
 const BLOCK_MS = 15 * 1000;
 const STATUS_INTERVAL_MS = 2000;
-const PASTE_RESTORE_DELAY_MS = 350;
 const SEND_ENTER_DELAY_MS = 120;
-
-keyboard.config.autoDelayMs = 0;
-
-const KEY_MAP = {
-  Enter: Key.Enter,
-  Backspace: Key.Backspace,
-  Tab: Key.Tab,
-  Escape: Key.Escape
-};
-
-const PASTE_MODIFIER = PLATFORM === 'darwin' ? Key.LeftSuper : Key.LeftControl;
 const authed = new WeakSet();
 const authFails = new Map();
 let config = loadConfig();
@@ -100,6 +87,7 @@ function healthPayload() {
     ok: true,
     appName: config.appName || 'VibeCast Remote',
     platform: PLATFORM,
+    platformLabel: platformAdapter.label,
     target: targetState,
     port: PORT,
     localUrl: `http://127.0.0.1:${PORT}`,
@@ -109,103 +97,15 @@ function healthPayload() {
   };
 }
 
-function isAscii(text) {
-  return /^[\x00-\x7F]*$/.test(text);
-}
-
-function runCommand(command, args, options = {}) {
-  return new Promise((resolve, reject) => {
-    execFile(command, args, {
-      encoding: 'utf8',
-      maxBuffer: 16 * 1024 * 1024,
-      timeout: options.timeout || 3000
-    }, (error, stdout, stderr) => {
-      if (error) {
-        error.stderr = stderr;
-        reject(error);
-        return;
-      }
-      resolve(stdout);
-    });
-  });
-}
-
-function copyToClipboard(text) {
-  if (PLATFORM !== 'darwin') {
-    return Promise.reject(new Error('Clipboard injection is currently implemented for macOS only.'));
-  }
-
-  return new Promise((resolve, reject) => {
-    const child = execFile('pbcopy', (error) => {
-      if (error) reject(error);
-      else resolve();
-    });
-    child.stdin.end(text, 'utf8');
-  });
-}
-
-function readClipboard() {
-  if (PLATFORM !== 'darwin') {
-    return Promise.reject(new Error('Clipboard restore is currently implemented for macOS only.'));
-  }
-  return runCommand('pbpaste', []);
-}
-
-async function pasteClipboard() {
-  await keyboard.pressKey(PASTE_MODIFIER);
-  await keyboard.pressKey(Key.V);
-  await keyboard.releaseKey(Key.V);
-  await keyboard.releaseKey(PASTE_MODIFIER);
-}
-
-async function injectText(text) {
-  if (!text) return;
-
-  if (isAscii(text)) {
-    await keyboard.type(text);
-    return;
-  }
-
-  let previousClipboard = null;
-  try {
-    previousClipboard = await readClipboard();
-  } catch {
-    previousClipboard = null;
-  }
-
-  await copyToClipboard(text);
-  await pasteClipboard();
-
-  if (previousClipboard !== null) {
-    setTimeout(() => {
-      copyToClipboard(previousClipboard).catch(() => {});
-    }, PASTE_RESTORE_DELAY_MS);
-  }
-}
-
-async function pressNamedKey(name) {
-  const key = KEY_MAP[name];
-  if (key === undefined) return;
-  await keyboard.pressKey(key);
-  await keyboard.releaseKey(key);
-}
-
 async function injectTextAndEnter(text) {
-  await injectText(text);
+  await platformAdapter.injectText(text);
   await new Promise((resolve) => setTimeout(resolve, SEND_ENTER_DELAY_MS));
-  await pressNamedKey('Enter');
-}
-
-async function getFrontmostAppName() {
-  if (PLATFORM !== 'darwin') return 'Current Focus';
-  const script = 'tell application "System Events" to get name of first application process whose frontmost is true';
-  const out = await runCommand('osascript', ['-e', script], { timeout: 2000 });
-  return (out || '').trim() || 'Current Focus';
+  await platformAdapter.pressNamedKey('Enter');
 }
 
 async function refreshTargetState() {
   try {
-    const appName = await getFrontmostAppName();
+    const appName = await platformAdapter.getFrontmostAppName();
     if (appName !== targetState.appName) {
       targetState = {
         appName,
@@ -270,7 +170,7 @@ function handleAuth(ws, req, msg) {
 async function handleAuthedMessage(ws, msg) {
   switch (msg.type) {
     case 'type':
-      if (typeof msg.text === 'string') await injectText(msg.text);
+      if (typeof msg.text === 'string') await platformAdapter.injectText(msg.text);
       sendJson(ws, { type: 'sent', mode: 'type' });
       break;
     case 'sendEnter':
@@ -279,7 +179,7 @@ async function handleAuthedMessage(ws, msg) {
       sendJson(ws, { type: 'sent', mode: 'sendEnter' });
       break;
     case 'key':
-      await pressNamedKey(String(msg.key || ''));
+      await platformAdapter.pressNamedKey(String(msg.key || ''));
       sendJson(ws, { type: 'sent', mode: 'key', key: msg.key });
       break;
     case 'ping':
@@ -384,7 +284,8 @@ server.listen(PORT, HOST, () => {
   const ips = getLanIPs();
   console.log('\n================ VibeCast Remote ================');
   console.log(`Pairing PIN: ${PIN}`);
-  console.log(`On this Mac: http://127.0.0.1:${PORT}`);
+  console.log(`Platform: ${platformAdapter.label}`);
+  console.log(`On this ${platformAdapter.localMachineLabel}: http://127.0.0.1:${PORT}`);
   console.log('On your phone, open one of these same-Wi-Fi URLs:');
   if (ips.length) {
     ips.forEach((ip) => console.log(`   http://${ip}:${PORT}`));
@@ -393,8 +294,8 @@ server.listen(PORT, HOST, () => {
   }
   console.log('\nIf the phone URL stops opening, your Mac IP may have changed.');
   console.log(`Open http://127.0.0.1:${PORT}/health on the Mac to see the current LAN URL.`);
-  console.log('\nmacOS setup: System Settings -> Privacy & Security -> Accessibility');
-  console.log('Enable the terminal app or node process that is running this server.');
+  console.log('');
+  platformAdapter.setupLines.forEach((line) => console.log(line));
   console.log('=================================================\n');
 });
 
