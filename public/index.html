@@ -472,6 +472,8 @@
     const message = $('message');
     const pinInput = $('pinInput');
     const textInput = $('textInput');
+    const sendButton = $('sendButton');
+    const sendEnterButton = $('sendEnterButton');
     const quickButtons = $('quickButtons');
     const targetList = $('targetList');
     const tokenStorageKey = `vibecast_pairing_token:${location.host}`;
@@ -516,8 +518,12 @@
 
     function defaultTargets() {
       return [
-        { id: 'current', label: 'Current Focus', hint: 'Use focused input', initial: 'C' }
+        { id: 'current', label: 'Current Focus', hint: 'Use focused input', initial: 'C', sendMode: 'type' }
       ];
+    }
+
+    function normalizeSendMode(mode) {
+      return mode === 'sendEnter' ? 'sendEnter' : 'type';
     }
 
     function normalizeTargets(targets) {
@@ -529,7 +535,8 @@
           id: target.id.trim(),
           label: String(target.label || target.id),
           hint: String(target.hint || ''),
-          initial: String(target.initial || target.label || target.id).trim().charAt(0).toUpperCase() || 'C'
+          initial: String(target.initial || target.label || target.id).trim().charAt(0).toUpperCase() || 'C',
+          sendMode: normalizeSendMode(target.sendMode)
         }))
         .filter((target) => {
           if (seen.has(target.id)) return false;
@@ -563,6 +570,34 @@
       return state.targets.find((target) => target.id === state.activeTargetId) || state.targets[0] || defaultTargets()[0];
     }
 
+    function getActiveSendMode() {
+      return normalizeSendMode(getActiveTarget().sendMode);
+    }
+
+    function oppositeMode(mode) {
+      return normalizeSendMode(mode) === 'sendEnter' ? 'type' : 'sendEnter';
+    }
+
+    function sendModeLabel(mode) {
+      return normalizeSendMode(mode) === 'sendEnter' ? 'Send + Enter' : 'Send';
+    }
+
+    function sendModeMeta(mode) {
+      return normalizeSendMode(mode) === 'sendEnter' ? 'Default: send + enter' : 'Default: send only';
+    }
+
+    function updateActionButtons() {
+      const primaryMode = getActiveSendMode();
+      sendButton.textContent = sendModeLabel(primaryMode);
+      sendEnterButton.textContent = sendModeLabel(oppositeMode(primaryMode));
+    }
+
+    function sendText(text, mode) {
+      const normalizedMode = normalizeSendMode(mode);
+      const type = normalizedMode === 'sendEnter' ? 'sendEnter' : 'type';
+      return send({ type, text, targetId: state.activeTargetId });
+    }
+
     function saveActiveDraft() {
       state.drafts[state.activeTargetId] = textInput.value;
       saveDrafts();
@@ -577,6 +612,7 @@
       textInput.value = state.drafts[state.activeTargetId] || '';
       saveDrafts();
       renderTargets();
+      updateActionButtons();
       setMessage('', false);
       textInput.focus();
     }
@@ -589,12 +625,13 @@
       }
       textInput.value = state.drafts[state.activeTargetId] || '';
       renderTargets();
+      updateActionButtons();
     }
 
     function draftSummary(target) {
       const text = state.drafts[target.id] || '';
       const count = text.trim().length;
-      return count ? `${count} chars draft` : (target.hint || 'No draft');
+      return count ? `${count} chars draft` : sendModeMeta(target.sendMode);
     }
 
     function renderTargets() {
@@ -730,7 +767,7 @@
         button.addEventListener('click', () => {
           const payload = String(item.payload || '');
           if (!payload) return;
-          send({ type: 'type', text: payload, targetId: state.activeTargetId });
+          sendText(payload, getActiveSendMode());
         });
         quickButtons.appendChild(button);
       });
@@ -769,15 +806,15 @@
       if (event.key === 'Enter') pair();
     });
 
-    $('sendButton').addEventListener('click', () => {
+    sendButton.addEventListener('click', () => {
       const text = textInput.value;
       if (!text) return;
-      if (send({ type: 'type', text, targetId: state.activeTargetId })) textInput.focus();
+      if (sendText(text, getActiveSendMode())) textInput.focus();
     });
 
-    $('sendEnterButton').addEventListener('click', () => {
+    sendEnterButton.addEventListener('click', () => {
       const text = textInput.value;
-      if (send({ type: 'sendEnter', text, targetId: state.activeTargetId })) textInput.focus();
+      if (sendText(text, oppositeMode(getActiveSendMode()))) textInput.focus();
     });
 
     $('clearButton').addEventListener('click', () => {

@@ -33,8 +33,10 @@ On Windows, allow Node.js through Windows Defender Firewall if prompted. If inje
 
 - The phone UI can keep separate drafts for configurable target cards such as Current Focus, Codex, and Notion.
 - Target cards are a phone-side workflow aid in this version. Injection still goes to whichever input field is focused on the computer.
+- Each target can set a default send action. For example, Codex can default to `Send + Enter`, while Notion defaults to plain `Send`.
 - `Send` injects text into the current focused field.
 - `Send + Enter` injects text, waits briefly, then presses Enter.
+- Quick buttons follow the active target's default send action.
 - Chinese, emoji, and mixed Unicode text use the system clipboard plus simulated paste.
 - The previous clipboard value is restored on a best-effort delay.
 - macOS uses `pbcopy` / `pbpaste` plus `Cmd+V`.
@@ -51,6 +53,7 @@ Token URLs are local control links. The phone stores the token in browser localS
 
 - `PORT=9000 npm start` changes the port.
 - `config.json` controls the app label, target cards, and quick buttons.
+- Target cards support `sendMode: "type"` or `sendMode: "sendEnter"`.
 
 ## Changelog
 

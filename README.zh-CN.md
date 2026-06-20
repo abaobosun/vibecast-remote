@@ -39,9 +39,10 @@ Windows 首次启动时，如果系统弹出 Windows Defender 防火墙提示，
 
 - 手机页面现在可以切换多个目标草稿卡，例如 Current Focus、Codex、Notion。
 - 这个版本里的目标卡主要用于手机端分开保存草稿；实际发送仍然进入电脑上当前聚焦的输入框。
+- 每个目标可以设置默认发送动作。例如 Codex 默认 `Send + Enter`，Notion 默认普通 `Send`。
 - `Send`：把文本发送到当前聚焦的输入框。
 - `Send + Enter`：先发送文本，短暂等待后再按 Enter。
-- 快捷按钮：发送 `继续`、`y`、`n`、`/compact` 等常用短语。
+- 快捷按钮：发送 `继续`、`y`、`n`、`/compact` 等常用短语，并跟随当前目标的默认发送动作。
 - 键位按钮：发送 Enter、Backspace、Tab、Esc。
 
 中文、emoji 和混合文本会通过系统剪贴板写入，再模拟粘贴。macOS 使用 `pbcopy` / `pbpaste` 和 `Cmd+V`，Windows 使用 PowerShell 剪贴板命令和 `Ctrl+V`。程序会尽量在粘贴后恢复原来的剪贴板内容。
@@ -57,6 +58,7 @@ Windows 首次启动时，如果系统弹出 Windows Defender 防火墙提示，
 
 - `PORT=9000 npm start` 可以修改端口。
 - `config.json` 可以修改应用名、目标草稿卡和快捷按钮。
+- 目标草稿卡支持 `sendMode: "type"` 或 `sendMode: "sendEnter"`。
 
 ## 更新记录
 

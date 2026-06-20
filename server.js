@@ -49,9 +49,9 @@ function loadConfig() {
 
 function defaultTargets() {
   return [
-    { id: 'current', label: 'Current Focus', hint: 'Use focused input', initial: 'C' },
-    { id: 'codex', label: 'Codex', hint: 'Draft for Codex', initial: 'C' },
-    { id: 'notion', label: 'Notion', hint: 'Draft for Notion', initial: 'N' }
+    { id: 'current', label: 'Current Focus', hint: 'Use focused input', initial: 'C', sendMode: 'type' },
+    { id: 'codex', label: 'Codex', hint: 'Draft for Codex', initial: 'C', sendMode: 'sendEnter' },
+    { id: 'notion', label: 'Notion', hint: 'Draft for Notion', initial: 'N', sendMode: 'type' }
   ];
 }
 
