@@ -1,0 +1,14 @@
+{
+  "name": "vibecast-remote",
+  "version": "0.1.0",
+  "description": "Phone browser voice input bridge for macOS over LAN.",
+  "main": "server.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.0",
+    "ws": "^8.18.0"
+  }
+}

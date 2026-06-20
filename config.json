@@ -1,0 +1,11 @@
+{
+  "appName": "VibeCast Remote",
+  "quickButtons": [
+    { "label": "Continue", "payload": "继续" },
+    { "label": "Yes", "payload": "y" },
+    { "label": "No", "payload": "n" },
+    { "label": "/compact", "payload": "/compact" },
+    { "label": "/clear", "payload": "/clear" },
+    { "label": "/review", "payload": "/review" }
+  ]
+}
