@@ -75,10 +75,14 @@ Windows 首次启动时，如果系统弹出 Windows Defender 防火墙提示，
 - 检查 macOS 辅助功能权限。
 - 重新启动服务后再试。
 
-## 参考
+## 致谢与参考
 
-本项目受 MIT 协议项目 `phone-web-remote` 启发：
+- 产品流程、手机输入面板思路和界面方向受到 `Pls-1q43/VibeCast` 启发：
+
+https://github.com/Pls-1q43/VibeCast
+
+- 本地 HTTP/WebSocket 桥接和剪贴板粘贴输入方式受到 MIT 协议项目 `phone-web-remote` 启发：
 
 https://github.com/hello-claude/phone-web-remote
 
-核心架构相同：本地 HTTP/WebSocket 服务、手机浏览器 UI、PIN 配对，以及通过剪贴板和模拟粘贴完成 macOS 文本注入。
+本项目保持轻量、跨平台实现：Node.js 服务、手机浏览器 UI、本地配对，以及通过系统剪贴板和模拟粘贴完成文本注入。

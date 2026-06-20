@@ -46,10 +46,14 @@ This is for trusted local networks. The pairing PIN changes on every launch and 
 - `PORT=9000 npm start` changes the port.
 - `config.json` controls the app label and quick buttons.
 
-## Reference
+## Credits
 
-This project is inspired by the MIT-licensed `phone-web-remote` project:
+- Product flow, mobile input panel ideas, and UI direction are inspired by `Pls-1q43/VibeCast`:
+
+https://github.com/Pls-1q43/VibeCast
+
+- The local HTTP/WebSocket bridge and clipboard-paste input approach are inspired by the MIT-licensed `phone-web-remote` project:
 
 https://github.com/hello-claude/phone-web-remote
 
-The architecture follows the same practical pattern: a local HTTP/WebSocket server, phone-browser UI, PIN pairing, and macOS text injection through the clipboard plus simulated paste.
+This project keeps the implementation intentionally lightweight and cross-platform: Node.js server, phone-browser UI, local pairing, and system clipboard plus simulated paste for text injection.
