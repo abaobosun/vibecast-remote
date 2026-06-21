@@ -15,6 +15,7 @@ const os = require('os');
 const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 const platformAdapter = require('./platform');
+const packageMeta = require('./package.json');
 
 const PORT = Number(process.env.PORT) || 8765;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -70,6 +71,11 @@ function getClientIp(req) {
   return (req && req.socket && req.socket.remoteAddress) || 'unknown';
 }
 
+function isLocalRequest(req) {
+  const ip = getClientIp(req);
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+}
+
 function getLanIPs() {
   const ips = [];
   const ifaces = os.networkInterfaces();
@@ -107,6 +113,302 @@ function healthPayload() {
     lanUrls: lanIPs.map((ip) => `http://${ip}:${PORT}`),
     startedAt
   };
+}
+
+function desktopPayload() {
+  const lanIPs = getLanIPs();
+  return {
+    ok: true,
+    appName: config.appName || 'VibeCast Remote',
+    version: packageMeta.version,
+    platform: PLATFORM,
+    platformLabel: platformAdapter.label,
+    localMachineLabel: platformAdapter.localMachineLabel,
+    pin: PIN,
+    token: PAIRING_TOKEN,
+    tokenUrls: lanIPs.map((ip) => buildUrl(ip, true)),
+    localUrl: buildUrl('127.0.0.1'),
+    desktopUrl: `${buildUrl('127.0.0.1')}desktop`,
+    lanIPs,
+    lanUrls: lanIPs.map((ip) => buildUrl(ip)),
+    target: targetState,
+    targets: config.targets,
+    quickButtons: config.quickButtons,
+    setupLines: platformAdapter.setupLines,
+    startedAt
+  };
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderValueList(values, emptyText) {
+  if (!values.length) return `<div class="muted">${escapeHtml(emptyText)}</div>`;
+  return values.map((value) => `<code>${escapeHtml(value)}</code>`).join('');
+}
+
+function renderDesktopPage(payload) {
+  const targetRows = payload.targets.map((target) => `
+    <tr>
+      <td>${escapeHtml(target.label || target.id)}</td>
+      <td><code>${escapeHtml(target.id)}</code></td>
+      <td>${escapeHtml(target.sendMode || 'type')}</td>
+      <td>${escapeHtml(target.hint || '')}</td>
+    </tr>
+  `).join('');
+  const quickButtonRows = payload.quickButtons.map((button) => `
+    <tr>
+      <td>${escapeHtml(button.label || '')}</td>
+      <td><code>${escapeHtml(button.payload || '')}</code></td>
+    </tr>
+  `).join('');
+  const setupLines = payload.setupLines.map((line) => `<li>${escapeHtml(line)}</li>`).join('');
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="10">
+  <title>VibeCast Desktop</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7f4;
+      --panel: #ffffff;
+      --panel-strong: #e8f7f2;
+      --ink: #18302c;
+      --muted: #657571;
+      --line: #cddbd6;
+      --accent: #159884;
+      --danger: #be4a45;
+      --button: #edf3f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 22px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    main {
+      width: min(980px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: 14px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 0;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+    .pill {
+      border: 1px solid rgba(21, 152, 132, 0.38);
+      border-radius: 999px;
+      padding: 7px 11px;
+      background: var(--panel-strong);
+      color: #0b6f61;
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: var(--panel);
+      box-shadow: 0 18px 42px rgba(31, 57, 50, 0.11);
+    }
+    .wide { grid-column: 1 / -1; }
+    .stat {
+      display: grid;
+      gap: 5px;
+      margin: 0 0 13px;
+    }
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .value {
+      min-width: 0;
+      font-size: 17px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+    .pin {
+      font-size: 34px;
+      letter-spacing: 7px;
+      color: var(--accent);
+    }
+    code {
+      display: block;
+      margin: 5px 0;
+      padding: 9px 10px;
+      border-radius: 8px;
+      background: #f0f5f2;
+      color: #143530;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th,
+    td {
+      border-top: 1px solid var(--line);
+      padding: 9px 7px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    td code {
+      margin: 0;
+      padding: 5px 7px;
+    }
+    ul {
+      margin: 0;
+      padding-left: 19px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    a {
+      color: var(--accent);
+      font-weight: 800;
+      text-decoration: none;
+    }
+    @media (max-width: 760px) {
+      body { padding: 12px; }
+      header { align-items: flex-start; flex-direction: column; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>${escapeHtml(payload.appName)} Desktop</h1>
+        <div class="muted">Local-only diagnostics. This page refreshes every 10 seconds.</div>
+      </div>
+      <div class="pill">v${escapeHtml(payload.version)} · ${escapeHtml(payload.platformLabel)}</div>
+    </header>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Pairing</h2>
+        <div class="stat">
+          <div class="label">PIN</div>
+          <div class="value pin">${escapeHtml(payload.pin)}</div>
+        </div>
+        <div class="stat">
+          <div class="label">Token URL</div>
+          ${renderValueList(payload.tokenUrls, 'No LAN address found. Check Wi-Fi and restart.')}
+        </div>
+        <div class="muted">Open the token URL on a phone connected to the same Wi-Fi.</div>
+      </div>
+
+      <div class="card">
+        <h2>Service</h2>
+        <div class="stat">
+          <div class="label">Local URL</div>
+          <code>${escapeHtml(payload.localUrl)}</code>
+        </div>
+        <div class="stat">
+          <div class="label">Desktop Dashboard</div>
+          <code>${escapeHtml(payload.desktopUrl)}</code>
+        </div>
+        <div class="stat">
+          <div class="label">Started</div>
+          <div class="value">${escapeHtml(payload.startedAt)}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Current Focus</h2>
+        <div class="stat">
+          <div class="label">Frontmost App</div>
+          <div class="value">${escapeHtml(payload.target.appName)}</div>
+        </div>
+        <div class="stat">
+          <div class="label">Updated</div>
+          <div class="value">${escapeHtml(payload.target.updatedAt)}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Network</h2>
+        <div class="stat">
+          <div class="label">LAN URLs without token</div>
+          ${renderValueList(payload.lanUrls, 'No LAN address found.')}
+        </div>
+        <div class="stat">
+          <div class="label">LAN IPs</div>
+          ${renderValueList(payload.lanIPs, 'No LAN IPs found.')}
+        </div>
+      </div>
+
+      <div class="card wide">
+        <h2>Targets</h2>
+        <table>
+          <thead><tr><th>Label</th><th>ID</th><th>Send Mode</th><th>Hint</th></tr></thead>
+          <tbody>${targetRows || '<tr><td colspan="4" class="muted">No targets configured.</td></tr>'}</tbody>
+        </table>
+      </div>
+
+      <div class="card wide">
+        <h2>Quick Buttons</h2>
+        <table>
+          <thead><tr><th>Label</th><th>Payload</th></tr></thead>
+          <tbody>${quickButtonRows || '<tr><td colspan="2" class="muted">No quick buttons configured.</td></tr>'}</tbody>
+        </table>
+      </div>
+
+      <div class="card wide">
+        <h2>Permissions</h2>
+        <ul>${setupLines || '<li>No platform-specific setup instructions.</li>'}</ul>
+      </div>
+    </section>
+  </main>
+</body>
+</html>`;
 }
 
 function buildUrl(host, includeToken = false) {
@@ -242,6 +544,20 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (url.pathname === '/desktop') {
+    if (!isLocalRequest(req)) {
+      res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('Desktop dashboard is only available from this computer.');
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store'
+    });
+    res.end(renderDesktopPage(desktopPayload()));
+    return;
+  }
+
   const requestedPath = url.pathname === '/' ? '/index.html' : url.pathname;
   const filePath = path.resolve(PUBLIC_DIR, `.${decodeURIComponent(requestedPath)}`);
 
@@ -316,6 +632,7 @@ server.listen(PORT, HOST, () => {
   console.log('\n================ VibeCast Remote ================');
   console.log(`Platform: ${platformAdapter.label}`);
   console.log(`On this ${platformAdapter.localMachineLabel}: ${buildUrl('127.0.0.1')}`);
+  console.log(`Desktop dashboard: ${buildUrl('127.0.0.1')}desktop`);
   console.log('On your phone, open one of these same-Wi-Fi token URLs:');
   if (ips.length) {
     ips.forEach((ip) => console.log(`   ${buildUrl(ip, true)}`));

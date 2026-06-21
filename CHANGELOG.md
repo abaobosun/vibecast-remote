@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added a local-only `/desktop` diagnostics dashboard with the current PIN, token URLs, LAN URLs, version, frontmost app, targets, quick buttons, and setup reminders.
+
+### Security
+
+- Kept pairing secrets out of `/health`; PIN and token details are only shown on the local-only desktop dashboard.
+
 ## 0.5.0 - 2026-06-21
 
 ### Added

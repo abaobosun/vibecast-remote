@@ -17,6 +17,8 @@ On macOS, you can also double-click `start.command`. On Windows, double-click `s
 
 The server prints one or more same-Wi-Fi URLs with a `token` query parameter. Open a token URL on your phone and pairing happens automatically. A four-digit PIN is still printed as a manual fallback.
 
+Open `http://127.0.0.1:8765/desktop` on the computer to see the current PIN, token URLs, LAN URLs, version, target config, and permission reminders. This desktop dashboard is local-only; LAN devices cannot open it.
+
 On Android Chrome or iOS Safari, use the browser menu to add VibeCast Remote to the home screen. The phone page includes a web app manifest and app icon for a more app-like launch experience.
 
 ## Platform Setup
@@ -48,6 +50,8 @@ On Windows, allow Node.js through Windows Defender Firewall if prompted. If inje
 This is for trusted local networks. The pairing PIN changes on every launch and is not stored. Do not expose the port to the public internet.
 
 Token URLs are local control links. The phone stores the token in browser localStorage and removes it from the address bar after first load. Restarting the server generates a new token.
+
+The `/desktop` dashboard shows the current PIN and token URL only to requests from this computer. The LAN-safe `/health` endpoint does not include pairing secrets.
 
 ## Configuration
 
