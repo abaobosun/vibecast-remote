@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added a local-only `/api/config` endpoint and desktop dashboard editor for target cards and quick buttons.
+- Saved desktop dashboard config changes are written to `config.json` and pushed to connected phones immediately.
+
 ## 0.6.1 - 2026-06-21
 
 ### Fixed

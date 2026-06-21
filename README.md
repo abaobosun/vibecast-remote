@@ -17,7 +17,7 @@ On macOS, you can also double-click `start.command`. On Windows, double-click `s
 
 The server prints one or more same-Wi-Fi URLs with a `token` query parameter. Open a token URL on your phone and pairing happens automatically. A four-digit PIN is still printed as a manual fallback.
 
-Open `http://127.0.0.1:8765/desktop` on the computer to see the current PIN, token URLs, LAN URLs, version, target config, and permission reminders. This desktop dashboard is local-only; LAN devices cannot open it.
+Open `http://127.0.0.1:8765/desktop` on the computer to see the current PIN, token URLs, LAN URLs, version, target config, and permission reminders. This desktop dashboard also edits target cards and quick buttons. It is local-only; LAN devices cannot open it.
 
 On iPhone, keep VibeCast Remote in a normal Safari or Edge tab, or save it as a browser bookmark. iOS home-screen web apps can black-screen when some third-party voice keyboards open. On Android Chrome, adding to the home screen is still fine when the keyboard behaves normally.
 
@@ -60,6 +60,7 @@ The phone page intentionally avoids iOS standalone home-screen mode because that
 - `PORT=9000 npm start` changes the port.
 - `config.json` controls the app label, target cards, and quick buttons.
 - Target cards support `sendMode: "type"` or `sendMode: "sendEnter"`.
+- The local-only `/api/config` endpoint powers the desktop dashboard and saves changes back to `config.json`.
 
 ## Changelog
 

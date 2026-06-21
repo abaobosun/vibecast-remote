@@ -23,7 +23,7 @@ macOS 也可以双击 `start.command`。Windows 可以双击 `start.bat`。
 
 手机和电脑必须在同一个 Wi-Fi 下。优先打开带 `token` 的手机地址，页面会自动配对；如果 token 过期或复制了不带 token 的地址，再输入 PIN。手机地址要使用 `http://`，不是 `https://`。
 
-在电脑本机打开 `http://127.0.0.1:8765/desktop`，可以查看当前 PIN、token 手机地址、LAN 地址、版本号、目标配置和权限提示。这个诊断页只允许电脑本机访问，局域网里的手机打不开。
+在电脑本机打开 `http://127.0.0.1:8765/desktop`，可以查看当前 PIN、token 手机地址、LAN 地址、版本号、目标配置和权限提示，也可以直接编辑目标卡和快捷按钮。这个诊断页只允许电脑本机访问，局域网里的手机打不开。
 
 iPhone 上建议把 VibeCast Remote 保持在 Safari 或 Edge 的普通标签页里使用，或者保存为浏览器书签。iOS 主屏幕 Web App 容器在部分第三方语音输入法打开时可能黑屏。Android Chrome 在输入法表现正常时仍然可以添加到主屏幕。
 
@@ -61,6 +61,7 @@ Windows 首次启动时，如果系统弹出 Windows Defender 防火墙提示，
 - `PORT=9000 npm start` 可以修改端口。
 - `config.json` 可以修改应用名、目标草稿卡和快捷按钮。
 - 目标草稿卡支持 `sendMode: "type"` 或 `sendMode: "sendEnter"`。
+- 本机专用的 `/api/config` 会给桌面诊断页保存配置，并写回 `config.json`。
 
 ## 更新记录
 

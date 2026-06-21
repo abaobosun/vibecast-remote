@@ -40,11 +40,9 @@ let targetState = {
 function loadConfig() {
   try {
     const parsed = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-    if (!Array.isArray(parsed.quickButtons)) parsed.quickButtons = [];
-    if (!Array.isArray(parsed.targets) || parsed.targets.length === 0) parsed.targets = defaultTargets();
-    return parsed;
+    return normalizeConfig(parsed);
   } catch {
-    return { appName: 'VibeCast Remote', targets: defaultTargets(), quickButtons: [] };
+    return normalizeConfig({ appName: 'VibeCast Remote', targets: defaultTargets(), quickButtons: [] });
   }
 }
 
@@ -59,6 +57,76 @@ function defaultTargets() {
   ];
 }
 
+function normalizeSendMode(mode) {
+  return mode === 'sendEnter' ? 'sendEnter' : 'type';
+}
+
+function limitString(value, fallback, maxLength) {
+  const text = String(value == null ? fallback : value).trim();
+  return text.slice(0, maxLength);
+}
+
+function fallbackId(label, index) {
+  const id = String(label || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return id || `target-${index + 1}`;
+}
+
+function normalizeTargets(rawTargets) {
+  const source = Array.isArray(rawTargets) && rawTargets.length ? rawTargets : defaultTargets();
+  const seen = new Set();
+  const targets = [];
+
+  source.slice(0, 24).forEach((target, index) => {
+    if (!target || typeof target !== 'object') return;
+    const label = limitString(target.label, target.id || `Target ${index + 1}`, 40);
+    const id = limitString(target.id, fallbackId(label, index), 48);
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    const initial = limitString(target.initial, label || id, 4).charAt(0).toUpperCase() || 'T';
+    targets.push({
+      id,
+      label: label || id,
+      hint: limitString(target.hint, '', 80),
+      initial,
+      sendMode: normalizeSendMode(target.sendMode)
+    });
+  });
+
+  return targets.length ? targets : defaultTargets();
+}
+
+function normalizeQuickButtons(rawButtons) {
+  if (!Array.isArray(rawButtons)) return [];
+  return rawButtons.slice(0, 24).map((button) => {
+    if (!button || typeof button !== 'object') return null;
+    const payload = limitString(button.payload, '', 500);
+    const label = limitString(button.label, payload || 'Send', 40);
+    if (!payload) return null;
+    return { label, payload };
+  }).filter(Boolean);
+}
+
+function normalizeConfig(rawConfig) {
+  const source = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
+  return {
+    appName: limitString(source.appName, 'VibeCast Remote', 80) || 'VibeCast Remote',
+    targets: normalizeTargets(source.targets),
+    quickButtons: normalizeQuickButtons(source.quickButtons)
+  };
+}
+
+function saveConfig(nextConfig) {
+  const normalized = normalizeConfig(nextConfig);
+  fs.writeFileSync(CONFIG_PATH, `${JSON.stringify(normalized, null, 2)}\n`);
+  config = normalized;
+  broadcastStatus();
+  return normalized;
+}
+
 function sendJson(ws, payload) {
   if (ws.readyState === 1) ws.send(JSON.stringify(payload));
 }
@@ -67,6 +135,16 @@ function broadcast(payload) {
   const encoded = JSON.stringify(payload);
   wss.clients.forEach((client) => {
     if (authed.has(client) && client.readyState === 1) client.send(encoded);
+  });
+}
+
+function broadcastStatus() {
+  broadcast({
+    type: 'status',
+    target: targetState,
+    targets: config.targets,
+    quickButtons: config.quickButtons,
+    appName: config.appName || 'VibeCast Remote'
   });
 }
 
@@ -156,6 +234,13 @@ function renderValueList(values, emptyText) {
   return values.map((value) => `<code>${escapeHtml(value)}</code>`).join('');
 }
 
+function scriptJson(value) {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+}
+
 function renderDesktopPage(payload) {
   const targetRows = payload.targets.map((target) => `
     <tr>
@@ -178,7 +263,6 @@ function renderDesktopPage(payload) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="10">
   <title>VibeCast Desktop</title>
   <style>
     :root {
@@ -317,10 +401,93 @@ function renderDesktopPage(payload) {
       font-weight: 800;
       text-decoration: none;
     }
+    button {
+      min-height: 38px;
+      border: 0;
+      border-radius: 8px;
+      padding: 0 12px;
+      background: var(--button);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 800;
+    }
+    button.primary {
+      background: var(--accent);
+      color: #ffffff;
+    }
+    button.danger {
+      color: var(--danger);
+    }
+    input,
+    select {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 9px;
+      background: #fbfdfc;
+      color: var(--ink);
+      font: inherit;
+      font-size: 14px;
+    }
+    .editor {
+      display: grid;
+      gap: 14px;
+    }
+    .editor-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .editor-list {
+      display: grid;
+      gap: 8px;
+    }
+    .editor-row {
+      display: grid;
+      gap: 8px;
+      align-items: center;
+    }
+    .editor-row.target-row {
+      grid-template-columns: 1fr 0.95fr 0.42fr 1.2fr 0.72fr auto;
+    }
+    .editor-row.quick-row {
+      grid-template-columns: 1fr 2fr auto;
+    }
+    .field-labels {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .editor-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .message {
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 750;
+    }
+    .message.error {
+      color: var(--danger);
+    }
     @media (max-width: 760px) {
       body { padding: 12px; }
       header { align-items: flex-start; flex-direction: column; }
       .grid { grid-template-columns: 1fr; }
+      .editor-row.target-row,
+      .editor-row.quick-row {
+        grid-template-columns: 1fr;
+      }
+      .field-labels {
+        display: none;
+      }
     }
   </style>
 </head>
@@ -329,7 +496,7 @@ function renderDesktopPage(payload) {
     <header>
       <div>
         <h1>${escapeHtml(payload.appName)} Desktop</h1>
-        <div class="muted">Local-only diagnostics. This page refreshes every 10 seconds.</div>
+        <div class="muted">Local-only diagnostics and configuration.</div>
       </div>
       <div class="pill">v${escapeHtml(payload.version)} · ${escapeHtml(payload.platformLabel)}</div>
     </header>
@@ -408,8 +575,177 @@ function renderDesktopPage(payload) {
         <h2>Permissions</h2>
         <ul>${setupLines || '<li>No platform-specific setup instructions.</li>'}</ul>
       </div>
+
+      <div class="card wide">
+        <h2>Configuration</h2>
+        <div class="editor">
+          <div class="stat">
+            <div class="label">App Label</div>
+            <input id="appNameInput" maxlength="80">
+          </div>
+          <div>
+            <div class="editor-title">
+              <div>
+                <div class="label">Target Cards</div>
+                <div class="muted">Saved changes are pushed to connected phones immediately.</div>
+              </div>
+              <button id="addTargetButton" type="button">Add Target</button>
+            </div>
+            <div class="editor-row target-row field-labels">
+              <div>Label</div><div>ID</div><div>Initial</div><div>Hint</div><div>Send Mode</div><div></div>
+            </div>
+            <div class="editor-list" id="targetsEditor"></div>
+          </div>
+          <div>
+            <div class="editor-title">
+              <div>
+                <div class="label">Quick Buttons</div>
+                <div class="muted">Quick buttons follow the active phone target's default send mode.</div>
+              </div>
+              <button id="addQuickButton" type="button">Add Button</button>
+            </div>
+            <div class="editor-row quick-row field-labels">
+              <div>Label</div><div>Payload</div><div></div>
+            </div>
+            <div class="editor-list" id="quickEditor"></div>
+          </div>
+          <div class="editor-actions">
+            <button class="primary" id="saveConfigButton" type="button">Save Config</button>
+            <button id="reloadConfigButton" type="button">Reload Page</button>
+            <span class="message" id="configMessage"></span>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
+  <script id="configData" type="application/json">${scriptJson({
+    appName: payload.appName,
+    targets: payload.targets,
+    quickButtons: payload.quickButtons
+  })}</script>
+  <script>
+    const configState = JSON.parse(document.getElementById('configData').textContent);
+    const appNameInput = document.getElementById('appNameInput');
+    const targetsEditor = document.getElementById('targetsEditor');
+    const quickEditor = document.getElementById('quickEditor');
+    const configMessage = document.getElementById('configMessage');
+
+    function setConfigMessage(text, isError) {
+      configMessage.textContent = text || '';
+      configMessage.classList.toggle('error', Boolean(isError));
+    }
+
+    function makeInput(value, placeholder, maxLength) {
+      const input = document.createElement('input');
+      input.value = value || '';
+      input.placeholder = placeholder || '';
+      input.maxLength = maxLength || 80;
+      return input;
+    }
+
+    function makeSendModeSelect(value) {
+      const select = document.createElement('select');
+      [['type', 'Send'], ['sendEnter', 'Send + Enter']].forEach((item) => {
+        const option = document.createElement('option');
+        option.value = item[0];
+        option.textContent = item[1];
+        option.selected = item[0] === value;
+        select.appendChild(option);
+      });
+      return select;
+    }
+
+    function renderTargetRow(target) {
+      const row = document.createElement('div');
+      row.className = 'editor-row target-row';
+      row.appendChild(makeInput(target.label, 'Codex', 40));
+      row.appendChild(makeInput(target.id, 'codex', 48));
+      row.appendChild(makeInput(target.initial, 'C', 4));
+      row.appendChild(makeInput(target.hint, 'Draft for Codex', 80));
+      row.appendChild(makeSendModeSelect(target.sendMode || 'type'));
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'danger';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => row.remove());
+      row.appendChild(remove);
+      targetsEditor.appendChild(row);
+    }
+
+    function renderQuickRow(button) {
+      const row = document.createElement('div');
+      row.className = 'editor-row quick-row';
+      row.appendChild(makeInput(button.label, 'Continue', 40));
+      row.appendChild(makeInput(button.payload, '继续', 500));
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'danger';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => row.remove());
+      row.appendChild(remove);
+      quickEditor.appendChild(row);
+    }
+
+    function collectConfig() {
+      const targets = Array.from(targetsEditor.querySelectorAll('.target-row')).map((row) => {
+        const fields = row.querySelectorAll('input, select');
+        return {
+          label: fields[0].value.trim(),
+          id: fields[1].value.trim(),
+          initial: fields[2].value.trim(),
+          hint: fields[3].value.trim(),
+          sendMode: fields[4].value
+        };
+      }).filter((target) => target.label || target.id);
+
+      const quickButtons = Array.from(quickEditor.querySelectorAll('.quick-row')).map((row) => {
+        const fields = row.querySelectorAll('input');
+        return {
+          label: fields[0].value.trim(),
+          payload: fields[1].value
+        };
+      }).filter((button) => button.payload.trim());
+
+      return {
+        appName: appNameInput.value.trim() || 'VibeCast Remote',
+        targets,
+        quickButtons
+      };
+    }
+
+    async function saveConfig() {
+      setConfigMessage('Saving...', false);
+      try {
+        const response = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ config: collectConfig() })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || 'Save failed');
+        setConfigMessage('Saved and pushed to connected phones.', false);
+      } catch (error) {
+        setConfigMessage(error.message || 'Save failed', true);
+      }
+    }
+
+    appNameInput.value = configState.appName || 'VibeCast Remote';
+    (configState.targets || []).forEach(renderTargetRow);
+    (configState.quickButtons || []).forEach(renderQuickRow);
+    document.getElementById('addTargetButton').addEventListener('click', () => renderTargetRow({
+      id: '',
+      label: '',
+      initial: '',
+      hint: '',
+      sendMode: 'type'
+    }));
+    document.getElementById('addQuickButton').addEventListener('click', () => renderQuickRow({
+      label: '',
+      payload: ''
+    }));
+    document.getElementById('saveConfigButton').addEventListener('click', saveConfig);
+    document.getElementById('reloadConfigButton').addEventListener('click', () => location.reload());
+  </script>
 </body>
 </html>`;
 }
@@ -427,6 +763,64 @@ function safeEqual(a, b) {
   return crypto.timingSafeEqual(aBuffer, bBuffer);
 }
 
+function readJsonBody(req, maxBytes = 100 * 1024) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    let body = '';
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        reject(new Error('Request body too large'));
+        req.destroy();
+        return;
+      }
+      body += chunk.toString('utf8');
+    });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(body || '{}'));
+      } catch {
+        reject(new Error('Invalid JSON body'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+function writeJson(res, statusCode, payload) {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store'
+  });
+  res.end(JSON.stringify(payload, null, 2));
+}
+
+async function handleConfigApi(req, res) {
+  if (!isLocalRequest(req)) {
+    writeJson(res, 403, { ok: false, error: 'Config API is only available from this computer.' });
+    return;
+  }
+
+  if (req.method === 'GET') {
+    writeJson(res, 200, { ok: true, config });
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    writeJson(res, 405, { ok: false, error: 'Method not allowed.' });
+    return;
+  }
+
+  try {
+    const body = await readJsonBody(req);
+    const nextConfig = body && typeof body.config === 'object' ? body.config : body;
+    const savedConfig = saveConfig(nextConfig);
+    writeJson(res, 200, { ok: true, config: savedConfig });
+  } catch (error) {
+    writeJson(res, 400, { ok: false, error: String((error && error.message) || error) });
+  }
+}
+
 async function injectTextAndEnter(text) {
   await platformAdapter.injectText(text);
   await new Promise((resolve) => setTimeout(resolve, SEND_ENTER_DELAY_MS));
@@ -442,7 +836,7 @@ async function refreshTargetState() {
         platform: PLATFORM,
         updatedAt: new Date().toISOString()
       };
-      broadcast({ type: 'status', target: targetState, targets: config.targets, quickButtons: config.quickButtons });
+      broadcastStatus();
     }
   } catch {
     if (targetState.appName !== 'Current Focus') {
@@ -451,7 +845,7 @@ async function refreshTargetState() {
         platform: PLATFORM,
         updatedAt: new Date().toISOString()
       };
-      broadcast({ type: 'status', target: targetState, targets: config.targets, quickButtons: config.quickButtons });
+      broadcastStatus();
     }
   }
 }
@@ -537,6 +931,13 @@ const startedAt = new Date().toISOString();
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+
+  if (url.pathname === '/api/config') {
+    handleConfigApi(req, res).catch((error) => {
+      writeJson(res, 500, { ok: false, error: String((error && error.message) || error) });
+    });
+    return;
+  }
 
   if (url.pathname === '/health') {
     res.writeHead(200, {
