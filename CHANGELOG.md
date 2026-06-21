@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Replaced the mobile composer viewport-based height with a fixed height to reduce iOS Safari layout jumps when third-party voice keyboards open.
+
 ## 0.6.0 - 2026-06-21
 
 ### Added

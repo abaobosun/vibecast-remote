@@ -369,9 +369,14 @@
     }
 
     @media (max-width: 430px) {
+      html {
+        scroll-padding-bottom: 160px;
+      }
+
       body {
         padding-left: 10px;
         padding-right: 10px;
+        padding-bottom: max(72px, env(safe-area-inset-bottom));
       }
 
       .actions {
@@ -425,8 +430,12 @@
       }
 
       textarea {
-        min-height: 104px;
-        max-height: 24vh;
+        height: 112px;
+        min-height: 112px;
+        max-height: 112px;
+        resize: none;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
     }
   </style>
