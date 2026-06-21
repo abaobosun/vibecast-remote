@@ -379,15 +379,49 @@
       }
 
       .quick {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        padding: 8px;
+      }
+
+      .quick button {
+        min-height: 38px;
+        padding: 0 6px;
+        font-size: 13px;
       }
 
       .focus-target {
         grid-template-columns: 40px 1fr 40px;
       }
 
+      .target-picker {
+        padding: 8px;
+      }
+
       .target-list {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .target-card {
+        grid-template-columns: 26px minmax(0, 1fr);
+        gap: 5px;
+        min-height: 44px;
+        padding: 6px;
+      }
+
+      .target-card-icon {
+        width: 26px;
+        height: 26px;
+        font-size: 12px;
+      }
+
+      .target-card-name {
+        font-size: 12px;
+      }
+
+      .target-card-meta {
+        display: none;
       }
 
       textarea {
