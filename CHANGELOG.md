@@ -4,6 +4,8 @@
 
 ### Added
 
+- Added up/down ordering controls for target cards and quick buttons in the desktop dashboard.
+- Added config export, import, and restore-default actions to the desktop dashboard.
 - Added a local-only `/api/config` endpoint and desktop dashboard editor for target cards and quick buttons.
 - Saved desktop dashboard config changes are written to `config.json` and pushed to connected phones immediately.
 

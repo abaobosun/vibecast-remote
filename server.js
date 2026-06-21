@@ -57,6 +57,17 @@ function defaultTargets() {
   ];
 }
 
+function defaultQuickButtons() {
+  return [
+    { label: 'Continue', payload: '继续' },
+    { label: 'Yes', payload: 'y' },
+    { label: 'No', payload: 'n' },
+    { label: '/compact', payload: '/compact' },
+    { label: '/clear', payload: '/clear' },
+    { label: '/review', payload: '/review' }
+  ];
+}
+
 function normalizeSendMode(mode) {
   return mode === 'sendEnter' ? 'sendEnter' : 'type';
 }
@@ -469,6 +480,21 @@ function renderDesktopPage(payload) {
       gap: 10px;
       flex-wrap: wrap;
     }
+    .row-actions {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .row-actions button {
+      min-height: 32px;
+      padding: 0 8px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .hidden-file {
+      display: none;
+    }
     .message {
       min-height: 20px;
       color: var(--muted);
@@ -612,7 +638,11 @@ function renderDesktopPage(payload) {
           </div>
           <div class="editor-actions">
             <button class="primary" id="saveConfigButton" type="button">保存配置</button>
+            <button id="exportConfigButton" type="button">导出配置</button>
+            <button id="importConfigButton" type="button">导入配置</button>
+            <button class="danger" id="resetConfigButton" type="button">恢复默认</button>
             <button id="reloadConfigButton" type="button">重新载入页面</button>
+            <input class="hidden-file" id="importConfigInput" type="file" accept="application/json,.json">
             <span class="message" id="configMessage"></span>
           </div>
         </div>
@@ -622,7 +652,12 @@ function renderDesktopPage(payload) {
   <script id="configData" type="application/json">${scriptJson({
     appName: payload.appName,
     targets: payload.targets,
-    quickButtons: payload.quickButtons
+    quickButtons: payload.quickButtons,
+    defaults: normalizeConfig({
+      appName: 'VibeCast Remote',
+      targets: defaultTargets(),
+      quickButtons: defaultQuickButtons()
+    })
   })}</script>
   <script>
     const configState = JSON.parse(document.getElementById('configData').textContent);
@@ -630,6 +665,7 @@ function renderDesktopPage(payload) {
     const targetsEditor = document.getElementById('targetsEditor');
     const quickEditor = document.getElementById('quickEditor');
     const configMessage = document.getElementById('configMessage');
+    const importConfigInput = document.getElementById('importConfigInput');
 
     function setConfigMessage(text, isError) {
       configMessage.textContent = text || '';
@@ -656,6 +692,35 @@ function renderDesktopPage(payload) {
       return select;
     }
 
+    function moveRow(row, direction) {
+      if (direction < 0 && row.previousElementSibling) {
+        row.parentElement.insertBefore(row, row.previousElementSibling);
+      }
+      if (direction > 0 && row.nextElementSibling) {
+        row.parentElement.insertBefore(row.nextElementSibling, row);
+      }
+    }
+
+    function makeRowActions(row) {
+      const actions = document.createElement('div');
+      const up = document.createElement('button');
+      const down = document.createElement('button');
+      const remove = document.createElement('button');
+      actions.className = 'row-actions';
+      up.type = 'button';
+      up.textContent = '上移';
+      up.addEventListener('click', () => moveRow(row, -1));
+      down.type = 'button';
+      down.textContent = '下移';
+      down.addEventListener('click', () => moveRow(row, 1));
+      remove.type = 'button';
+      remove.className = 'danger';
+      remove.textContent = '删除';
+      remove.addEventListener('click', () => row.remove());
+      actions.append(up, down, remove);
+      return actions;
+    }
+
     function renderTargetRow(target) {
       const row = document.createElement('div');
       row.className = 'editor-row target-row';
@@ -664,12 +729,7 @@ function renderDesktopPage(payload) {
       row.appendChild(makeInput(target.initial, 'C', 4));
       row.appendChild(makeInput(target.hint, 'Draft for Codex', 80));
       row.appendChild(makeSendModeSelect(target.sendMode || 'type'));
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'danger';
-      remove.textContent = '删除';
-      remove.addEventListener('click', () => row.remove());
-      row.appendChild(remove);
+      row.appendChild(makeRowActions(row));
       targetsEditor.appendChild(row);
     }
 
@@ -678,13 +738,16 @@ function renderDesktopPage(payload) {
       row.className = 'editor-row quick-row';
       row.appendChild(makeInput(button.label, 'Continue', 40));
       row.appendChild(makeInput(button.payload, '继续', 500));
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'danger';
-      remove.textContent = '删除';
-      remove.addEventListener('click', () => row.remove());
-      row.appendChild(remove);
+      row.appendChild(makeRowActions(row));
       quickEditor.appendChild(row);
+    }
+
+    function renderConfig(nextConfig) {
+      appNameInput.value = nextConfig.appName || 'VibeCast Remote';
+      targetsEditor.innerHTML = '';
+      quickEditor.innerHTML = '';
+      (nextConfig.targets || []).forEach(renderTargetRow);
+      (nextConfig.quickButtons || []).forEach(renderQuickRow);
     }
 
     function collectConfig() {
@@ -730,9 +793,41 @@ function renderDesktopPage(payload) {
       }
     }
 
-    appNameInput.value = configState.appName || 'VibeCast Remote';
-    (configState.targets || []).forEach(renderTargetRow);
-    (configState.quickButtons || []).forEach(renderQuickRow);
+    function downloadConfig() {
+      const blob = new Blob([JSON.stringify(collectConfig(), null, 2) + '\\n'], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'vibecast-config.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setConfigMessage('配置已导出。', false);
+    }
+
+    function importConfigFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        try {
+          const parsed = JSON.parse(String(reader.result || '{}'));
+          const nextConfig = parsed.config && typeof parsed.config === 'object' ? parsed.config : parsed;
+          renderConfig(nextConfig);
+          setConfigMessage('配置已导入编辑器，点击保存后生效。', false);
+        } catch {
+          setConfigMessage('导入失败：JSON 格式不正确。', true);
+        }
+      });
+      reader.readAsText(file);
+    }
+
+    function resetConfig() {
+      renderConfig(configState.defaults);
+      setConfigMessage('已恢复默认到编辑器，点击保存后生效。', false);
+    }
+
+    renderConfig(configState);
     document.getElementById('addTargetButton').addEventListener('click', () => renderTargetRow({
       id: '',
       label: '',
@@ -745,6 +840,13 @@ function renderDesktopPage(payload) {
       payload: ''
     }));
     document.getElementById('saveConfigButton').addEventListener('click', saveConfig);
+    document.getElementById('exportConfigButton').addEventListener('click', downloadConfig);
+    document.getElementById('importConfigButton').addEventListener('click', () => importConfigInput.click());
+    document.getElementById('resetConfigButton').addEventListener('click', resetConfig);
+    importConfigInput.addEventListener('change', () => {
+      importConfigFile(importConfigInput.files[0]);
+      importConfigInput.value = '';
+    });
     document.getElementById('reloadConfigButton').addEventListener('click', () => location.reload());
   </script>
 </body>
