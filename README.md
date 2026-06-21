@@ -19,7 +19,7 @@ The server prints one or more same-Wi-Fi URLs with a `token` query parameter. Op
 
 Open `http://127.0.0.1:8765/desktop` on the computer to see the current PIN, token URLs, LAN URLs, version, target config, and permission reminders. This desktop dashboard is local-only; LAN devices cannot open it.
 
-On Android Chrome or iOS Safari, use the browser menu to add VibeCast Remote to the home screen. The phone page includes a web app manifest and app icon for a more app-like launch experience.
+On iPhone, keep VibeCast Remote in a normal Safari or Edge tab, or save it as a browser bookmark. iOS home-screen web apps can black-screen when some third-party voice keyboards open. On Android Chrome, adding to the home screen is still fine when the keyboard behaves normally.
 
 ## Platform Setup
 
@@ -52,6 +52,8 @@ This is for trusted local networks. The pairing PIN changes on every launch and 
 Token URLs are local control links. The phone stores the token in browser localStorage and removes it from the address bar after first load. Restarting the server generates a new token.
 
 The `/desktop` dashboard shows the current PIN and token URL only to requests from this computer. The LAN-safe `/health` endpoint does not include pairing secrets.
+
+The phone page intentionally avoids iOS standalone home-screen mode because that mode can conflict with third-party voice input keyboards.
 
 ## Configuration
 

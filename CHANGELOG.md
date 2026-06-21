@@ -5,6 +5,7 @@
 ### Fixed
 
 - Replaced the mobile composer viewport-based height with a fixed height to reduce iOS Safari layout jumps when third-party voice keyboards open.
+- Disabled iOS standalone home-screen mode to avoid black screens when third-party voice keyboards switch into voice input.
 
 ## 0.6.0 - 2026-06-21
 

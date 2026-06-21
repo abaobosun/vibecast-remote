@@ -25,7 +25,7 @@ macOS 也可以双击 `start.command`。Windows 可以双击 `start.bat`。
 
 在电脑本机打开 `http://127.0.0.1:8765/desktop`，可以查看当前 PIN、token 手机地址、LAN 地址、版本号、目标配置和权限提示。这个诊断页只允许电脑本机访问，局域网里的手机打不开。
 
-在 Android Chrome 或 iOS Safari 中，可以通过浏览器菜单把 VibeCast Remote 添加到主屏幕。手机页面已经包含 Web App manifest 和图标，启动体验会更接近普通 App。
+iPhone 上建议把 VibeCast Remote 保持在 Safari 或 Edge 的普通标签页里使用，或者保存为浏览器书签。iOS 主屏幕 Web App 容器在部分第三方语音输入法打开时可能黑屏。Android Chrome 在输入法表现正常时仍然可以添加到主屏幕。
 
 ## macOS 权限
 
@@ -73,6 +73,8 @@ Windows 首次启动时，如果系统弹出 Windows Defender 防火墙提示，
 服务也会生成一次性 token URL。手机首次打开后会把 token 存在浏览器 localStorage，并从地址栏移除 token。重启服务会生成新的 token。
 
 `/desktop` 本机诊断页会显示当前 PIN 和 token URL。面向局域网排查的 `/health` 不会显示 PIN 或 token。
+
+手机页面现在会避开 iOS 的主屏幕独立 Web App 模式，因为这个模式可能和第三方语音输入法冲突。
 
 不要把端口暴露到公网。
 
