@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.1 - 2026-06-21
+
+### Changed
+
+- Moved the mobile composer above the app/status header to reduce iOS keyboard auto-scroll.
+- Reduced the mobile composer height so it behaves more like a compact input strip.
+- Removed automatic composer refocus after target, history, send, clear, and pairing actions.
+
 ## 0.8.0 - 2026-06-21
 
 ### Added

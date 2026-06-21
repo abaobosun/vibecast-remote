@@ -296,9 +296,13 @@
     }
 
     .composer {
-      display: grid;
+      display: none;
       gap: 10px;
       padding: 12px;
+    }
+
+    .composer.ready {
+      display: grid;
     }
 
     textarea {
@@ -498,9 +502,12 @@
       }
 
       textarea {
-        height: 112px;
-        min-height: 112px;
-        max-height: 112px;
+        height: 56px;
+        min-height: 56px;
+        max-height: 56px;
+        padding: 8px 10px;
+        font-size: 16px;
+        line-height: 1.25;
         resize: none;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
@@ -510,6 +517,16 @@
 </head>
 <body>
   <main class="app">
+    <section class="panel composer" id="composerPanel">
+      <textarea id="textInput" autocapitalize="sentences" autocomplete="off" placeholder="语音输入内容"></textarea>
+      <div class="actions">
+        <button class="primary" id="sendButton">Send</button>
+        <button class="primary alt" id="sendEnterButton">Send + Enter</button>
+        <button class="secondary danger" id="clearButton">Clear</button>
+      </div>
+      <div class="message" id="message"></div>
+    </section>
+
     <header class="topbar">
       <div class="brand">
         <div class="mark">V</div>
@@ -539,16 +556,6 @@
 
       <section class="panel target-picker">
         <div class="target-list" id="targetList"></div>
-      </section>
-
-      <section class="panel composer">
-        <textarea id="textInput" autocapitalize="sentences" autocomplete="off" placeholder="语音输入内容"></textarea>
-        <div class="actions">
-          <button class="primary" id="sendButton">Send</button>
-          <button class="primary alt" id="sendEnterButton">Send + Enter</button>
-          <button class="secondary danger" id="clearButton">Clear</button>
-        </div>
-        <div class="message" id="message"></div>
       </section>
 
       <section class="panel history" id="historyPanel">
@@ -592,6 +599,7 @@
 
     const $ = (id) => document.getElementById(id);
     const statusEl = $('status');
+    const composerPanel = $('composerPanel');
     const authPanel = $('authPanel');
     const mainPanel = $('mainPanel');
     const authMessage = $('authMessage');
@@ -776,7 +784,6 @@
       renderTargets();
       updateActionButtons();
       setMessage('', false);
-      textInput.focus();
     }
 
     function setTargets(targets) {
@@ -874,7 +881,6 @@
           renderTargets();
           updateActionButtons();
           setMessage('已填入发送历史', false);
-          textInput.focus();
         });
         historyList.appendChild(button);
       });
@@ -921,6 +927,7 @@
         setStatus('已断开', false, true);
         setMessage('连接已断开，内容已保留，正在重连...', true);
         if (!state.hasConnected || !state.pairingToken) {
+          composerPanel.classList.remove('ready');
           mainPanel.classList.remove('ready');
           authPanel.style.display = 'grid';
         }
@@ -955,11 +962,11 @@
           localStorage.setItem(tokenStorageKey, data.token);
         }
         authPanel.style.display = 'none';
+        composerPanel.classList.add('ready');
         mainPanel.classList.add('ready');
         authMessage.textContent = '';
         setMessage('', false);
         setStatus('已连接', true, false);
-        textInput.focus();
         return;
       }
 
@@ -969,6 +976,8 @@
           localStorage.removeItem(tokenStorageKey);
           state.pairingToken = '';
           state.lastAuthMethod = '';
+          composerPanel.classList.remove('ready');
+          mainPanel.classList.remove('ready');
           authPanel.style.display = 'grid';
           authMessage.textContent = 'Token expired. Enter the current PIN.';
           setStatus('已断开', false, true);
@@ -1071,26 +1080,24 @@
     sendButton.addEventListener('click', () => {
       const text = textInput.value;
       if (!text) return;
-      if (sendText(text, getActiveSendMode())) textInput.focus();
+      sendText(text, getActiveSendMode());
     });
 
     sendEnterButton.addEventListener('click', () => {
       const text = textInput.value;
-      if (sendText(text, oppositeMode(getActiveSendMode()))) textInput.focus();
+      sendText(text, oppositeMode(getActiveSendMode()));
     });
 
     $('clearButton').addEventListener('click', () => {
       textInput.value = '';
       saveActiveDraft();
       setMessage('', false);
-      textInput.focus();
     });
 
     $('clearHistoryButton').addEventListener('click', () => {
       state.sentHistory = [];
       saveSentHistory();
       renderHistory();
-      textInput.focus();
     });
 
     $('refreshButton').addEventListener('click', () => {
