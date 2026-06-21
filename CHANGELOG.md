@@ -5,6 +5,7 @@
 ### Added
 
 - Added a local-only `/desktop` diagnostics dashboard with the current PIN, token URLs, LAN URLs, version, frontmost app, targets, quick buttons, and setup reminders.
+- Added Hermes, Claude Code, and Obsidian as default target cards.
 
 ### Security
 

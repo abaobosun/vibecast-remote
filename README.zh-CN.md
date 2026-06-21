@@ -39,9 +39,9 @@ Windows 首次启动时，如果系统弹出 Windows Defender 防火墙提示，
 
 ## 使用方式
 
-- 手机页面现在可以切换多个目标草稿卡，例如 Current Focus、Codex、Notion。
+- 手机页面现在可以切换多个目标草稿卡，例如 Current Focus、Codex、Notion、Hermes、Claude Code、Obsidian。
 - 这个版本里的目标卡主要用于手机端分开保存草稿；实际发送仍然进入电脑上当前聚焦的输入框。
-- 每个目标可以设置默认发送动作。例如 Codex 默认 `Send + Enter`，Notion 默认普通 `Send`。
+- 每个目标可以设置默认发送动作。例如 Codex 和 Claude Code 默认 `Send + Enter`，Notion 默认普通 `Send`。
 - `Send`：把文本发送到当前聚焦的输入框。
 - `Send + Enter`：先发送文本，短暂等待后再按 Enter。
 - 快捷按钮：发送 `继续`、`y`、`n`、`/compact` 等常用短语，并跟随当前目标的默认发送动作。

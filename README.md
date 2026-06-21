@@ -33,9 +33,9 @@ On Windows, allow Node.js through Windows Defender Firewall if prompted. If inje
 
 ## Behavior
 
-- The phone UI can keep separate drafts for configurable target cards such as Current Focus, Codex, and Notion.
+- The phone UI can keep separate drafts for configurable target cards such as Current Focus, Codex, Notion, Hermes, Claude Code, and Obsidian.
 - Target cards are a phone-side workflow aid in this version. Injection still goes to whichever input field is focused on the computer.
-- Each target can set a default send action. For example, Codex can default to `Send + Enter`, while Notion defaults to plain `Send`.
+- Each target can set a default send action. For example, Codex and Claude Code can default to `Send + Enter`, while Notion defaults to plain `Send`.
 - `Send` injects text into the current focused field.
 - `Send + Enter` injects text, waits briefly, then presses Enter.
 - Quick buttons follow the active target's default send action.
