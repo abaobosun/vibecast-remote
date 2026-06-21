@@ -1,19 +1,73 @@
 {
   "appName": "VibeCast Remote",
   "targets": [
-    { "id": "current", "label": "Current Focus", "hint": "Use focused input", "initial": "C", "sendMode": "type" },
-    { "id": "codex", "label": "Codex", "hint": "Draft for Codex", "initial": "C", "sendMode": "sendEnter" },
-    { "id": "notion", "label": "Notion", "hint": "Draft for Notion", "initial": "N", "sendMode": "type" },
-    { "id": "hermes", "label": "Hermes", "hint": "Draft for Hermes", "initial": "H", "sendMode": "type" },
-    { "id": "claude-code", "label": "Claude Code", "hint": "Draft for Claude Code", "initial": "C", "sendMode": "sendEnter" },
-    { "id": "obsidian", "label": "Obsidian", "hint": "Draft for Obsidian", "initial": "O", "sendMode": "type" }
+    {
+      "id": "current",
+      "label": "Current Focus",
+      "hint": "Use focused input",
+      "initial": "C",
+      "sendMode": "type"
+    },
+    {
+      "id": "codex",
+      "label": "Codex",
+      "hint": "Draft for Codex",
+      "initial": "C",
+      "sendMode": "sendEnter"
+    },
+    {
+      "id": "notion",
+      "label": "Notion",
+      "hint": "Draft for Notion",
+      "initial": "N",
+      "sendMode": "sendEnter"
+    },
+    {
+      "id": "hermes",
+      "label": "Hermes",
+      "hint": "Draft for Hermes",
+      "initial": "H",
+      "sendMode": "sendEnter"
+    },
+    {
+      "id": "claude-code",
+      "label": "Claude Code",
+      "hint": "Draft for Claude Code",
+      "initial": "C",
+      "sendMode": "sendEnter"
+    },
+    {
+      "id": "obsidian",
+      "label": "Obsidian",
+      "hint": "Draft for Obsidian",
+      "initial": "O",
+      "sendMode": "type"
+    }
   ],
   "quickButtons": [
-    { "label": "Continue", "payload": "继续" },
-    { "label": "Yes", "payload": "y" },
-    { "label": "No", "payload": "n" },
-    { "label": "/compact", "payload": "/compact" },
-    { "label": "/clear", "payload": "/clear" },
-    { "label": "/review", "payload": "/review" }
+    {
+      "label": "Continue",
+      "payload": "继续"
+    },
+    {
+      "label": "Yes",
+      "payload": "y"
+    },
+    {
+      "label": "No",
+      "payload": "n"
+    },
+    {
+      "label": "/compact",
+      "payload": "/compact"
+    },
+    {
+      "label": "/clear",
+      "payload": "/clear"
+    },
+    {
+      "label": "/review",
+      "payload": "/review"
+    }
   ]
 }

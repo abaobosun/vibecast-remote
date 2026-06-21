@@ -972,7 +972,7 @@ function handleAuth(ws, req, msg) {
   if (tokenMatches || pinMatches) {
     authFails.delete(ip);
     authed.add(ws);
-    sendJson(ws, { type: 'authOk', method: tokenMatches ? 'token' : 'pin' });
+    sendJson(ws, { type: 'authOk', method: tokenMatches ? 'token' : 'pin', token: PAIRING_TOKEN });
     sendJson(ws, {
       type: 'status',
       target: targetState,
@@ -999,19 +999,24 @@ function handleAuth(ws, req, msg) {
 }
 
 async function handleAuthedMessage(ws, msg) {
+  const sentMeta = {};
+  if (typeof msg.clientId === 'string' && msg.clientId) {
+    sentMeta.clientId = msg.clientId;
+  }
+
   switch (msg.type) {
     case 'type':
       if (typeof msg.text === 'string') await platformAdapter.injectText(msg.text);
-      sendJson(ws, { type: 'sent', mode: 'type', targetId: msg.targetId || 'current' });
+      sendJson(ws, { type: 'sent', mode: 'type', targetId: msg.targetId || 'current', ...sentMeta });
       break;
     case 'sendEnter':
       if (typeof msg.text === 'string') await injectTextAndEnter(msg.text);
       else await platformAdapter.pressNamedKey('Enter');
-      sendJson(ws, { type: 'sent', mode: 'sendEnter', targetId: msg.targetId || 'current' });
+      sendJson(ws, { type: 'sent', mode: 'sendEnter', targetId: msg.targetId || 'current', ...sentMeta });
       break;
     case 'key':
       await platformAdapter.pressNamedKey(String(msg.key || ''));
-      sendJson(ws, { type: 'sent', mode: 'key', key: msg.key });
+      sendJson(ws, { type: 'sent', mode: 'key', key: msg.key, ...sentMeta });
       break;
     case 'ping':
       sendJson(ws, { type: 'pong', target: targetState, targets: config.targets, quickButtons: config.quickButtons });
@@ -1110,9 +1115,15 @@ wss.on('connection', (ws, req) => {
       await handleAuthedMessage(ws, msg);
       refreshTargetState().catch(() => {});
     } catch (error) {
-      sendJson(ws, {
+      const errorPayload = {
         type: 'error',
         message: String((error && error.message) || error)
+      };
+      if (msg && typeof msg.clientId === 'string' && msg.clientId) {
+        errorPayload.clientId = msg.clientId;
+      }
+      sendJson(ws, {
+        ...errorPayload
       });
     }
   });
@@ -1127,7 +1138,7 @@ server.on('error', (error) => {
   if (error.code === 'EACCES' || error.code === 'EPERM') {
     console.error('The current environment blocked opening the local network port.');
   }
-  process.exitCode = 1;
+  process.exit(1);
 });
 
 wss.on('error', (error) => {

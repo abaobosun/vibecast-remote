@@ -1,6 +1,6 @@
 {
   "name": "vibecast-remote",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Phone browser voice input bridge for macOS and Windows over LAN.",
   "main": "server.js",
   "license": "MIT",

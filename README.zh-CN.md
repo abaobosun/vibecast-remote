@@ -15,6 +15,14 @@ npm start
 
 macOS 也可以双击 `start.command`。Windows 可以双击 `start.bat`。
 
+日常使用时，macOS 更建议用后台脚本：
+
+- 双击 `start-background.command`：以 macOS `launchd` 后台服务方式启动。
+- 双击 `status.command`：查看服务是否在运行、检查 `/health`、显示最近日志。
+- 双击 `stop.command`：停止后台服务。
+
+后台日志会写入 `~/Library/Logs/VibeCast Remote/vibecast.log`，错误日志会写入 `~/Library/Logs/VibeCast Remote/vibecast.error.log`。
+
 服务启动后会打印：
 
 - 带 `token` 参数的手机同 Wi-Fi 访问地址
@@ -45,6 +53,8 @@ Windows 首次启动时，如果系统弹出 Windows Defender 防火墙提示，
 - `Send`：把文本发送到当前聚焦的输入框。
 - `Send + Enter`：先发送文本，短暂等待后再按 Enter。
 - 快捷按钮：发送 `继续`、`y`、`n`、`/compact` 等常用短语，并跟随当前目标的默认发送动作。
+- 手机页面会在 WebSocket 断开后自动重连，并且不会清空当前输入框内容。
+- 手机页面会保存最近 10 条成功发送的文本，点击发送历史可以重新填入输入框。
 - 键位按钮：发送 Enter、Backspace、Tab、Esc。
 
 中文、emoji 和混合文本会通过系统剪贴板写入，再模拟粘贴。macOS 使用 `pbcopy` / `pbpaste` 和 `Cmd+V`，Windows 使用 PowerShell 剪贴板命令和 `Ctrl+V`。程序会尽量在粘贴后恢复原来的剪贴板内容。
@@ -59,6 +69,8 @@ Windows 首次启动时，如果系统弹出 Windows Defender 防火墙提示，
 ## 配置
 
 - `PORT=9000 npm start` 可以修改端口。
+- `PORT=9000 ./start-background.command` 可以用指定端口后台启动。
+- `LABEL=com.vibecast.remote.test ./start-background.command` 可以用不同的 macOS 服务名测试。
 - `config.json` 可以修改应用名、目标草稿卡和快捷按钮。
 - 目标草稿卡支持 `sendMode: "type"` 或 `sendMode: "sendEnter"`。
 - 本机专用的 `/api/config` 会给桌面诊断页保存配置，并写回 `config.json`。
@@ -93,6 +105,12 @@ Windows 首次启动时，如果系统弹出 Windows Defender 防火墙提示，
 - 确认目标输入框已经聚焦。
 - 检查 macOS 辅助功能权限。
 - 重新启动服务后再试。
+
+如果服务刚才还在、后来没了：
+
+- 双击 `status.command` 查看当前状态和最近日志。
+- 也可以打开 `~/Library/Logs/VibeCast Remote/vibecast.log` 查看退出前输出。
+- 用 `start-background.command` 启动后，关闭终端窗口不会直接结束服务。
 
 ## 致谢与参考
 

@@ -123,6 +123,12 @@
       background: #e8f7f2;
     }
 
+    .status-pill.offline {
+      border-color: rgba(190, 74, 69, 0.35);
+      color: var(--danger);
+      background: #fff0ef;
+    }
+
     .panel {
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -346,6 +352,67 @@
       padding: 12px;
     }
 
+    .history {
+      display: none;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .history.visible {
+      display: grid;
+    }
+
+    .history-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .history-clear {
+      min-height: 30px;
+      padding: 0 8px;
+      font-size: 12px;
+      font-weight: 800;
+      background: transparent;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .history-item {
+      display: grid;
+      gap: 4px;
+      min-height: 48px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdfc;
+      text-align: left;
+    }
+
+    .history-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .history-meta {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
     .keys {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -390,6 +457,10 @@
         min-height: 38px;
         padding: 0 6px;
         font-size: 13px;
+      }
+
+      .history {
+        padding: 8px;
       }
 
       .focus-target {
@@ -480,6 +551,14 @@
         <div class="message" id="message"></div>
       </section>
 
+      <section class="panel history" id="historyPanel">
+        <div class="history-head">
+          <span>发送历史</span>
+          <button class="history-clear danger" id="clearHistoryButton" type="button">清空</button>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </section>
+
       <section class="panel quick" id="quickButtons"></section>
 
       <section class="panel keys">
@@ -499,6 +578,12 @@
       targets: [],
       activeTargetId: 'current',
       drafts: {},
+      sentHistory: [],
+      pendingTextSends: {},
+      clientCounter: 0,
+      reconnectTimer: null,
+      reconnectAttempts: 0,
+      hasConnected: false,
       authPending: false,
       lastAttemptPin: '',
       lastAuthMethod: '',
@@ -517,12 +602,17 @@
     const sendEnterButton = $('sendEnterButton');
     const quickButtons = $('quickButtons');
     const targetList = $('targetList');
+    const historyPanel = $('historyPanel');
+    const historyList = $('historyList');
     const tokenStorageKey = `vibecast_pairing_token:${location.host}`;
     const draftsStorageKey = `vibecast_drafts:${location.host}`;
     const activeTargetStorageKey = `vibecast_active_target:${location.host}`;
+    const historyStorageKey = `vibecast_sent_history:${location.host}`;
 
     loadDrafts();
     loadActiveTarget();
+    loadSentHistory();
+    renderHistory();
 
     function loadPairingToken() {
       const params = new URLSearchParams(location.search);
@@ -538,9 +628,10 @@
       return localStorage.getItem(tokenStorageKey) || '';
     }
 
-    function setStatus(text, ready) {
+    function setStatus(text, ready, offline) {
       statusEl.textContent = text;
       statusEl.classList.toggle('ready', Boolean(ready));
+      statusEl.classList.toggle('offline', Boolean(offline));
     }
 
     function setMessage(text, isError) {
@@ -550,7 +641,9 @@
 
     function send(payload) {
       if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-        setMessage('Disconnected', true);
+        setStatus('已断开', false, true);
+        setMessage('连接已断开，内容已保留，正在重连...', true);
+        scheduleReconnect();
         return false;
       }
       state.ws.send(JSON.stringify(payload));
@@ -599,6 +692,21 @@
       localStorage.setItem(draftsStorageKey, JSON.stringify(state.drafts));
     }
 
+    function loadSentHistory() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(historyStorageKey) || '[]');
+        state.sentHistory = Array.isArray(parsed)
+          ? parsed.filter((item) => item && typeof item.text === 'string').slice(0, 10)
+          : [];
+      } catch {
+        state.sentHistory = [];
+      }
+    }
+
+    function saveSentHistory() {
+      localStorage.setItem(historyStorageKey, JSON.stringify(state.sentHistory.slice(0, 10)));
+    }
+
     function loadActiveTarget() {
       state.activeTargetId = localStorage.getItem(activeTargetStorageKey) || 'current';
     }
@@ -633,10 +741,23 @@
       sendEnterButton.textContent = sendModeLabel(oppositeMode(primaryMode));
     }
 
+    function nextClientId() {
+      state.clientCounter += 1;
+      return `${Date.now()}-${state.clientCounter}`;
+    }
+
     function sendText(text, mode) {
       const normalizedMode = normalizeSendMode(mode);
       const type = normalizedMode === 'sendEnter' ? 'sendEnter' : 'type';
-      return send({ type, text, targetId: state.activeTargetId });
+      const clientId = nextClientId();
+      state.pendingTextSends[clientId] = {
+        text,
+        mode: normalizedMode,
+        targetId: state.activeTargetId
+      };
+      const ok = send({ type, text, targetId: state.activeTargetId, clientId });
+      if (!ok) delete state.pendingTextSends[clientId];
+      return ok;
     }
 
     function saveActiveDraft() {
@@ -702,17 +823,91 @@
       });
     }
 
+    function addSentHistory(entry) {
+      const text = String(entry.text || '');
+      if (!text.trim()) return;
+      const target = state.targets.find((item) => item.id === entry.targetId) || getActiveTarget();
+      const nextItem = {
+        text,
+        mode: normalizeSendMode(entry.mode),
+        targetId: entry.targetId || state.activeTargetId,
+        targetLabel: target.label || 'Current Focus',
+        sentAt: Date.now()
+      };
+      state.sentHistory = [
+        nextItem,
+        ...state.sentHistory.filter((item) => item.text !== text)
+      ].slice(0, 10);
+      saveSentHistory();
+      renderHistory();
+    }
+
+    function formatHistoryMeta(item) {
+      const mode = normalizeSendMode(item.mode) === 'sendEnter' ? 'Send + Enter' : 'Send';
+      const target = item.targetLabel || 'Current Focus';
+      return `${target} · ${mode}`;
+    }
+
+    function renderHistory() {
+      historyList.innerHTML = '';
+      historyPanel.classList.toggle('visible', state.sentHistory.length > 0);
+      state.sentHistory.forEach((item) => {
+        const button = document.createElement('button');
+        const text = document.createElement('span');
+        const meta = document.createElement('span');
+        button.type = 'button';
+        button.className = 'history-item';
+        text.className = 'history-text';
+        text.textContent = item.text;
+        meta.className = 'history-meta';
+        meta.textContent = formatHistoryMeta(item);
+        button.append(text, meta);
+        button.addEventListener('click', () => {
+          state.drafts[state.activeTargetId] = textInput.value;
+          if (state.targets.some((target) => target.id === item.targetId)) {
+            state.activeTargetId = item.targetId;
+            saveActiveTarget();
+          }
+          textInput.value = item.text;
+          state.drafts[state.activeTargetId] = item.text;
+          saveDrafts();
+          renderTargets();
+          updateActionButtons();
+          setMessage('已填入发送历史', false);
+          textInput.focus();
+        });
+        historyList.appendChild(button);
+      });
+    }
+
+    function scheduleReconnect() {
+      if (state.reconnectTimer) return;
+      const delay = Math.min(8000, 900 + state.reconnectAttempts * 900);
+      state.reconnectAttempts += 1;
+      state.reconnectTimer = setTimeout(() => {
+        state.reconnectTimer = null;
+        setStatus('重连中', false, false);
+        connect();
+      }, delay);
+    }
+
     function connect() {
+      if (state.ws && (state.ws.readyState === WebSocket.OPEN || state.ws.readyState === WebSocket.CONNECTING)) return;
+      if (state.reconnectTimer) {
+        clearTimeout(state.reconnectTimer);
+        state.reconnectTimer = null;
+      }
       const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
       state.pairingToken = loadPairingToken();
       state.ws = new WebSocket(`${protocol}//${location.host}`);
-      setStatus('Connecting', false);
+      setStatus('重连中', false, false);
 
       state.ws.addEventListener('open', () => {
-        setStatus('Pairing', false);
+        state.hasConnected = true;
+        setStatus('重连中', false, false);
         if (state.pairingToken) {
           authPanel.style.display = 'none';
-          setMessage('Pairing with saved token...', false);
+          setMessage('正在恢复连接...', false);
           authWithToken(state.pairingToken);
         } else {
           authPanel.style.display = 'grid';
@@ -720,11 +915,21 @@
       });
 
       state.ws.addEventListener('close', () => {
+        state.ws = null;
         state.authed = false;
-        setStatus('Offline', false);
-        mainPanel.classList.remove('ready');
-        authPanel.style.display = 'grid';
-        setTimeout(connect, 1200);
+        state.authPending = false;
+        setStatus('已断开', false, true);
+        setMessage('连接已断开，内容已保留，正在重连...', true);
+        if (!state.hasConnected || !state.pairingToken) {
+          mainPanel.classList.remove('ready');
+          authPanel.style.display = 'grid';
+        }
+        scheduleReconnect();
+      });
+
+      state.ws.addEventListener('error', () => {
+        setStatus('已断开', false, true);
+        setMessage('连接失败，内容已保留，正在重连...', true);
       });
 
       state.ws.addEventListener('message', (event) => {
@@ -742,13 +947,18 @@
       if (data.type === 'authOk') {
         state.authed = true;
         state.authPending = false;
+        state.reconnectAttempts = 0;
         state.lastAttemptPin = '';
         state.lastAuthMethod = data.method || '';
+        if (typeof data.token === 'string' && data.token) {
+          state.pairingToken = data.token;
+          localStorage.setItem(tokenStorageKey, data.token);
+        }
         authPanel.style.display = 'none';
         mainPanel.classList.add('ready');
         authMessage.textContent = '';
         setMessage('', false);
-        setStatus('Ready', true);
+        setStatus('已连接', true, false);
         textInput.focus();
         return;
       }
@@ -761,7 +971,7 @@
           state.lastAuthMethod = '';
           authPanel.style.display = 'grid';
           authMessage.textContent = 'Token expired. Enter the current PIN.';
-          setStatus('Pairing', false);
+          setStatus('已断开', false, true);
           return;
         }
         const seconds = Math.ceil((data.retryAfterMs || 0) / 1000);
@@ -788,6 +998,10 @@
       }
 
       if (data.type === 'sent') {
+        if (data.clientId && state.pendingTextSends[data.clientId]) {
+          addSentHistory(state.pendingTextSends[data.clientId]);
+          delete state.pendingTextSends[data.clientId];
+        }
         const target = state.targets.find((item) => item.id === data.targetId) || getActiveTarget();
         setMessage(`Sent to ${target.label}`, false);
         setTimeout(() => setMessage('', false), 900);
@@ -795,6 +1009,9 @@
       }
 
       if (data.type === 'error') {
+        if (data.clientId && state.pendingTextSends[data.clientId]) {
+          delete state.pendingTextSends[data.clientId];
+        }
         setMessage(data.message || 'Injection failed', true);
       }
     }
@@ -819,7 +1036,9 @@
       state.authPending = true;
       state.lastAuthMethod = 'token';
       authMessage.textContent = '';
-      send({ type: 'auth', token });
+      if (!send({ type: 'auth', token })) {
+        state.authPending = false;
+      }
     }
 
     function pair() {
@@ -832,7 +1051,9 @@
       state.authPending = true;
       state.lastAuthMethod = 'pin';
       state.lastAttemptPin = pin;
-      send({ type: 'auth', pin });
+      if (!send({ type: 'auth', pin })) {
+        state.authPending = false;
+      }
     }
 
     $('pairButton').addEventListener('click', pair);
@@ -862,6 +1083,13 @@
       textInput.value = '';
       saveActiveDraft();
       setMessage('', false);
+      textInput.focus();
+    });
+
+    $('clearHistoryButton').addEventListener('click', () => {
+      state.sentHistory = [];
+      saveSentHistory();
+      renderHistory();
       textInput.focus();
     });
 

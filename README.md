@@ -15,6 +15,14 @@ npm start
 
 On macOS, you can also double-click `start.command`. On Windows, double-click `start.bat`.
 
+For day-to-day use on macOS, the background scripts are more convenient:
+
+- Double-click `start-background.command` to run the server as a macOS `launchd` background service.
+- Double-click `status.command` to check whether it is running, inspect `/health`, and show recent logs.
+- Double-click `stop.command` to stop the background server.
+
+Background logs are written to `~/Library/Logs/VibeCast Remote/vibecast.log`, with errors in `~/Library/Logs/VibeCast Remote/vibecast.error.log`.
+
 The server prints one or more same-Wi-Fi URLs with a `token` query parameter. Open a token URL on your phone and pairing happens automatically. A four-digit PIN is still printed as a manual fallback.
 
 Open `http://127.0.0.1:8765/desktop` on the computer to see the current PIN, token URLs, LAN URLs, version, target config, and permission reminders. This desktop dashboard also edits, reorders, imports, exports, and resets target cards and quick buttons. It is local-only; LAN devices cannot open it.
@@ -39,6 +47,8 @@ On Windows, allow Node.js through Windows Defender Firewall if prompted. If inje
 - `Send` injects text into the current focused field.
 - `Send + Enter` injects text, waits briefly, then presses Enter.
 - Quick buttons follow the active target's default send action.
+- The phone page automatically reconnects if the WebSocket drops and keeps the current draft intact.
+- The phone page stores the latest 10 successfully sent text items as tappable send history.
 - Chinese, emoji, and mixed Unicode text use the system clipboard plus simulated paste.
 - The previous clipboard value is restored on a best-effort delay.
 - macOS uses `pbcopy` / `pbpaste` plus `Cmd+V`.
@@ -58,6 +68,8 @@ The phone page intentionally avoids iOS standalone home-screen mode because that
 ## Configuration
 
 - `PORT=9000 npm start` changes the port.
+- `PORT=9000 ./start-background.command` starts the background server on a different port.
+- `LABEL=com.vibecast.remote.test ./start-background.command` can use a different macOS service label for testing.
 - `config.json` controls the app label, target cards, and quick buttons.
 - Target cards support `sendMode: "type"` or `sendMode: "sendEnter"`.
 - The local-only `/api/config` endpoint powers the desktop dashboard and saves changes back to `config.json`.

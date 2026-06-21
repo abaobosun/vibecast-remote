@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.0 - 2026-06-21
+
+### Added
+
+- Added macOS `launchd` background start, stop, and status helper scripts.
+- Added local log output at `~/Library/Logs/VibeCast Remote/vibecast.log` and `~/Library/Logs/VibeCast Remote/vibecast.error.log` for background runs.
+- Added mobile WebSocket auto-reconnect with visible connected, reconnecting, and disconnected states.
+- Added a mobile sent-history panel that keeps the latest 10 successfully sent text items and can refill the composer.
+
+### Changed
+
+- Mobile send attempts now keep the composer text intact when the connection is down.
+
 ## 0.7.0 - 2026-06-21
 
 ### Added
