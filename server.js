@@ -242,11 +242,12 @@ function scriptJson(value) {
 }
 
 function renderDesktopPage(payload) {
+  const sendModeLabel = (mode) => mode === 'sendEnter' ? '发送并回车' : '仅发送';
   const targetRows = payload.targets.map((target) => `
     <tr>
       <td>${escapeHtml(target.label || target.id)}</td>
       <td><code>${escapeHtml(target.id)}</code></td>
-      <td>${escapeHtml(target.sendMode || 'type')}</td>
+      <td>${escapeHtml(sendModeLabel(target.sendMode))}</td>
       <td>${escapeHtml(target.hint || '')}</td>
     </tr>
   `).join('');
@@ -259,11 +260,11 @@ function renderDesktopPage(payload) {
   const setupLines = payload.setupLines.map((line) => `<li>${escapeHtml(line)}</li>`).join('');
 
   return `<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VibeCast Desktop</title>
+  <title>VibeCast 本机面板</title>
   <style>
     :root {
       color-scheme: light;
@@ -495,123 +496,123 @@ function renderDesktopPage(payload) {
   <main>
     <header>
       <div>
-        <h1>${escapeHtml(payload.appName)} Desktop</h1>
-        <div class="muted">Local-only diagnostics and configuration.</div>
+        <h1>${escapeHtml(payload.appName)} 本机面板</h1>
+        <div class="muted">仅限本机访问的诊断与配置页面。</div>
       </div>
       <div class="pill">v${escapeHtml(payload.version)} · ${escapeHtml(payload.platformLabel)}</div>
     </header>
 
     <section class="grid">
       <div class="card">
-        <h2>Pairing</h2>
+        <h2>配对</h2>
         <div class="stat">
           <div class="label">PIN</div>
           <div class="value pin">${escapeHtml(payload.pin)}</div>
         </div>
         <div class="stat">
-          <div class="label">Token URL</div>
-          ${renderValueList(payload.tokenUrls, 'No LAN address found. Check Wi-Fi and restart.')}
+          <div class="label">Token 手机地址</div>
+          ${renderValueList(payload.tokenUrls, '没有找到局域网地址。检查 Wi-Fi 后重启服务。')}
         </div>
-        <div class="muted">Open the token URL on a phone connected to the same Wi-Fi.</div>
+        <div class="muted">在同一 Wi-Fi 下的手机浏览器里打开 token 地址。</div>
       </div>
 
       <div class="card">
-        <h2>Service</h2>
+        <h2>服务</h2>
         <div class="stat">
-          <div class="label">Local URL</div>
+          <div class="label">本机地址</div>
           <code>${escapeHtml(payload.localUrl)}</code>
         </div>
         <div class="stat">
-          <div class="label">Desktop Dashboard</div>
+          <div class="label">本机面板</div>
           <code>${escapeHtml(payload.desktopUrl)}</code>
         </div>
         <div class="stat">
-          <div class="label">Started</div>
+          <div class="label">启动时间</div>
           <div class="value">${escapeHtml(payload.startedAt)}</div>
         </div>
       </div>
 
       <div class="card">
-        <h2>Current Focus</h2>
+        <h2>当前焦点</h2>
         <div class="stat">
-          <div class="label">Frontmost App</div>
+          <div class="label">前台应用</div>
           <div class="value">${escapeHtml(payload.target.appName)}</div>
         </div>
         <div class="stat">
-          <div class="label">Updated</div>
+          <div class="label">更新时间</div>
           <div class="value">${escapeHtml(payload.target.updatedAt)}</div>
         </div>
       </div>
 
       <div class="card">
-        <h2>Network</h2>
+        <h2>网络</h2>
         <div class="stat">
-          <div class="label">LAN URLs without token</div>
-          ${renderValueList(payload.lanUrls, 'No LAN address found.')}
+          <div class="label">不带 token 的手机地址</div>
+          ${renderValueList(payload.lanUrls, '没有找到局域网地址。')}
         </div>
         <div class="stat">
-          <div class="label">LAN IPs</div>
-          ${renderValueList(payload.lanIPs, 'No LAN IPs found.')}
+          <div class="label">局域网 IP</div>
+          ${renderValueList(payload.lanIPs, '没有找到局域网 IP。')}
         </div>
       </div>
 
       <div class="card wide">
-        <h2>Targets</h2>
+        <h2>目标卡</h2>
         <table>
-          <thead><tr><th>Label</th><th>ID</th><th>Send Mode</th><th>Hint</th></tr></thead>
-          <tbody>${targetRows || '<tr><td colspan="4" class="muted">No targets configured.</td></tr>'}</tbody>
+          <thead><tr><th>名称</th><th>ID</th><th>发送模式</th><th>提示</th></tr></thead>
+          <tbody>${targetRows || '<tr><td colspan="4" class="muted">还没有配置目标卡。</td></tr>'}</tbody>
         </table>
       </div>
 
       <div class="card wide">
-        <h2>Quick Buttons</h2>
+        <h2>快捷按钮</h2>
         <table>
-          <thead><tr><th>Label</th><th>Payload</th></tr></thead>
-          <tbody>${quickButtonRows || '<tr><td colspan="2" class="muted">No quick buttons configured.</td></tr>'}</tbody>
+          <thead><tr><th>名称</th><th>发送内容</th></tr></thead>
+          <tbody>${quickButtonRows || '<tr><td colspan="2" class="muted">还没有配置快捷按钮。</td></tr>'}</tbody>
         </table>
       </div>
 
       <div class="card wide">
-        <h2>Permissions</h2>
-        <ul>${setupLines || '<li>No platform-specific setup instructions.</li>'}</ul>
+        <h2>权限提示</h2>
+        <ul>${setupLines || '<li>没有平台专用权限提示。</li>'}</ul>
       </div>
 
       <div class="card wide">
-        <h2>Configuration</h2>
+        <h2>配置</h2>
         <div class="editor">
           <div class="stat">
-            <div class="label">App Label</div>
+            <div class="label">应用名称</div>
             <input id="appNameInput" maxlength="80">
           </div>
           <div>
             <div class="editor-title">
               <div>
-                <div class="label">Target Cards</div>
-                <div class="muted">Saved changes are pushed to connected phones immediately.</div>
+                <div class="label">目标卡</div>
+                <div class="muted">保存后会立即推送到已连接的手机页面。</div>
               </div>
-              <button id="addTargetButton" type="button">Add Target</button>
+              <button id="addTargetButton" type="button">添加目标</button>
             </div>
             <div class="editor-row target-row field-labels">
-              <div>Label</div><div>ID</div><div>Initial</div><div>Hint</div><div>Send Mode</div><div></div>
+              <div>名称</div><div>ID</div><div>首字母</div><div>提示</div><div>发送模式</div><div></div>
             </div>
             <div class="editor-list" id="targetsEditor"></div>
           </div>
           <div>
             <div class="editor-title">
               <div>
-                <div class="label">Quick Buttons</div>
-                <div class="muted">Quick buttons follow the active phone target's default send mode.</div>
+                <div class="label">快捷按钮</div>
+                <div class="muted">快捷按钮会跟随手机端当前目标的默认发送模式。</div>
               </div>
-              <button id="addQuickButton" type="button">Add Button</button>
+              <button id="addQuickButton" type="button">添加按钮</button>
             </div>
             <div class="editor-row quick-row field-labels">
-              <div>Label</div><div>Payload</div><div></div>
+              <div>名称</div><div>发送内容</div><div></div>
             </div>
             <div class="editor-list" id="quickEditor"></div>
           </div>
           <div class="editor-actions">
-            <button class="primary" id="saveConfigButton" type="button">Save Config</button>
-            <button id="reloadConfigButton" type="button">Reload Page</button>
+            <button class="primary" id="saveConfigButton" type="button">保存配置</button>
+            <button id="reloadConfigButton" type="button">重新载入页面</button>
             <span class="message" id="configMessage"></span>
           </div>
         </div>
@@ -645,7 +646,7 @@ function renderDesktopPage(payload) {
 
     function makeSendModeSelect(value) {
       const select = document.createElement('select');
-      [['type', 'Send'], ['sendEnter', 'Send + Enter']].forEach((item) => {
+      [['type', '仅发送'], ['sendEnter', '发送并回车']].forEach((item) => {
         const option = document.createElement('option');
         option.value = item[0];
         option.textContent = item[1];
@@ -666,7 +667,7 @@ function renderDesktopPage(payload) {
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'danger';
-      remove.textContent = 'Remove';
+      remove.textContent = '删除';
       remove.addEventListener('click', () => row.remove());
       row.appendChild(remove);
       targetsEditor.appendChild(row);
@@ -680,7 +681,7 @@ function renderDesktopPage(payload) {
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'danger';
-      remove.textContent = 'Remove';
+      remove.textContent = '删除';
       remove.addEventListener('click', () => row.remove());
       row.appendChild(remove);
       quickEditor.appendChild(row);
@@ -714,7 +715,7 @@ function renderDesktopPage(payload) {
     }
 
     async function saveConfig() {
-      setConfigMessage('Saving...', false);
+      setConfigMessage('正在保存...', false);
       try {
         const response = await fetch('/api/config', {
           method: 'POST',
@@ -722,10 +723,10 @@ function renderDesktopPage(payload) {
           body: JSON.stringify({ config: collectConfig() })
         });
         const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error(data.error || 'Save failed');
-        setConfigMessage('Saved and pushed to connected phones.', false);
+        if (!response.ok || !data.ok) throw new Error(data.error || '保存失败');
+        setConfigMessage('已保存，并已推送到已连接的手机。', false);
       } catch (error) {
-        setConfigMessage(error.message || 'Save failed', true);
+        setConfigMessage(error.message || '保存失败', true);
       }
     }
 
@@ -951,7 +952,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/desktop') {
     if (!isLocalRequest(req)) {
       res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end('Desktop dashboard is only available from this computer.');
+      res.end('本机面板只允许从这台电脑访问。');
       return;
     }
     res.writeHead(200, {
