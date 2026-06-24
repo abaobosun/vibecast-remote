@@ -168,6 +168,26 @@ function isLocalRequest(req) {
   return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
 }
 
+function normalizeHost(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function isAllowedWebSocketOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+
+  const host = normalizeHost(req.headers.host);
+  if (!host) return false;
+
+  try {
+    const originUrl = new URL(origin);
+    if (originUrl.protocol !== 'http:' && originUrl.protocol !== 'https:') return false;
+    return normalizeHost(originUrl.host) === host;
+  } catch {
+    return false;
+  }
+}
+
 function getLanIPs() {
   const ips = [];
   const ifaces = os.networkInterfaces();
@@ -1071,7 +1091,15 @@ const server = http.createServer((req, res) => {
   }
 
   const requestedPath = url.pathname === '/' ? '/index.html' : url.pathname;
-  const filePath = path.resolve(PUBLIC_DIR, `.${decodeURIComponent(requestedPath)}`);
+  let decodedPath;
+  try {
+    decodedPath = decodeURIComponent(requestedPath);
+  } catch {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Bad request');
+    return;
+  }
+  const filePath = path.resolve(PUBLIC_DIR, `.${decodedPath}`);
 
   if (!filePath.startsWith(PUBLIC_DIR + path.sep)) {
     res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -1093,7 +1121,12 @@ const server = http.createServer((req, res) => {
   });
 });
 
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({
+  server,
+  verifyClient(info, done) {
+    done(isAllowedWebSocketOrigin(info.req), 403, 'Forbidden');
+  }
+});
 
 wss.on('connection', (ws, req) => {
   ws.on('message', async (raw) => {

@@ -20,14 +20,14 @@
       "label": "Notion",
       "hint": "Draft for Notion",
       "initial": "N",
-      "sendMode": "sendEnter"
+      "sendMode": "type"
     },
     {
       "id": "hermes",
       "label": "Hermes",
       "hint": "Draft for Hermes",
       "initial": "H",
-      "sendMode": "sendEnter"
+      "sendMode": "type"
     },
     {
       "id": "claude-code",
